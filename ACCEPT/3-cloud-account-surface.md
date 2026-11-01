@@ -64,9 +64,16 @@ them), and the whole `auth/` surface except the Clerk path are untouched or bare
 - [x] **Pi path still renders** —
       `vp test run apps/server/src/orchestration-v2/testkit/PiReplayFixtures.integration.test.ts -t pi_chat_demo`
       → **1 passed**. This PR touches no renderer, so the fixture is the proof; see below.
-- [x] **`pnpm-lock.yaml` regenerated** — `pnpm install --lockfile-only --ignore-scripts`,
-      2,130 lines removed; `infra/*` is out of `pnpm-workspace.yaml`, so `infra/relay` can never
-      be re-installed by an `i` on a fresh clone.
+- [x] **`pnpm-lock.yaml` matches every manifest** — verified with CI's own gate, not just a
+      regeneration: `CI=true vp install --ignore-scripts` prints **"Lockfile is up to date"**, and
+      `require.resolve("electron-store", { paths: ["apps/desktop"] })` now throws, as intended.
+      The first attempt failed all 12 CI jobs in `Setup Vite+` with `ERR_PNPM_OUTDATED_LOCKFILE`:
+      I regenerated the lockfile _before_ the last `package.json` edits, and `check:changed` cannot
+      see that — knip and typecheck resolve through the stale `node_modules` install just built.
+      For a dependency cut, regenerate **after** the manifests are final and reproduce the frozen
+      install locally; a green knip is not evidence the lockfile agrees.
+- [x] **`infra/*` is out of `pnpm-workspace.yaml`** — so `infra/relay` can never be re-installed by
+      an `i` on a fresh clone.
 - [x] **The docs this PR invalidated are gone, not stale** — `guest-links.md`,
       `internals/t3-connect.md`, `operations/connect-setup.md`, and `operations/relay-observability.md`
       are deleted; no reference to them survives anywhere; no command in a kept doc tells you to
