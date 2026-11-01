@@ -433,7 +433,7 @@ interface RemoteCache {
   readonly token: string;
 }
 
-/** The shared task-cache login (infra/task-cache/install.sh) also authorizes native clients. */
+/** An optional self-hosted artifact cache; its config lives outside this repo, so builds are local without it. */
 const remoteCache = Effect.fn("nativeClient.remoteCache")(
   function* (home: string) {
     const environment = yield* HostProcess.Environment;
@@ -887,7 +887,6 @@ const reportTelemetry = Effect.fn("nativeClient.reportTelemetry")(
     if (!remote) return;
     const environment = yield* HostProcess.Environment;
     const recordedAt = yield* Clock.currentTimeMillis;
-    // Same machine label as Vite task reports (infra/task-cache/src/telemetry.ts).
     const fs = yield* FileSystem.FileSystem;
     const machine = yield* fs.readFileString(`${home}/.agents/MACHINE`).pipe(
       Effect.map((value) => value.trim()),
