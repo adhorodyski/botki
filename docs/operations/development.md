@@ -336,5 +336,5 @@ passed as `--wsl-runtime`.
 ### Signing and passkeys
 
 Add `--signed` after configuring the platform signing credentials. macOS passkeys need a
-signed, provisioned app; follow the
-[Connect setup](./connect-setup.md#desktop-passkeys) for local signing and renderer HMR.
+signed, provisioned app: set the passkey relying-party domain in the desktop build config, then
+sign and provision before testing passkeys in the packaged app.

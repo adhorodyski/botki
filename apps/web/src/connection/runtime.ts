@@ -5,17 +5,18 @@ import {
   ThreadHistoryController,
 } from "@t3tools/client-runtime/state/threads";
 import { PullRequestDiffLoader } from "@t3tools/client-runtime/state/pull-requests";
-import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Atom } from "effect/reactivity";
 
-import { isGuestPage } from "../guestPage";
-
+import * as NoRelay from "../lib/noRelay";
 import * as Runtime from "../lib/runtime";
 import * as BackgroundActivityReporter from "../lib/backgroundActivityReporter";
 import * as ConnectionPlatform from "./platform";
 
-const layerProvidedConnectionPlatform = ConnectionPlatform.layer.pipe(Layer.provide(Runtime.layer));
+const layerProvidedConnectionPlatform = ConnectionPlatform.layer.pipe(
+  Layer.provideMerge(NoRelay.layer),
+  Layer.provide(Runtime.layer),
+);
 
 const layerSnapshotLoader = Layer.mergeAll(
   BoundedThreadSnapshotLoader.layer,
@@ -53,18 +54,7 @@ const layerConnection = BackgroundActivityReporter.layer.pipe(
   Layer.provideMerge(layerProvidedClientConnection),
 );
 
-/**
- * A guest has no session here. Building the connection would open the page origin's environment
- * with whatever cookie this browser holds, plus every environment saved in it, so on the guest
- * page the runtime fails to build and every atom on it keeps its empty value.
- */
-const layerForPage = Layer.unwrap(
-  Effect.suspend((): Effect.Effect<typeof layerConnection> =>
-    isGuestPage()
-      ? Effect.die(new Error("The guest page has no environment connection."))
-      : Effect.succeed(layerConnection),
-  ),
-);
+const layerForPage = layerConnection;
 
 export const connectionAtomRuntime: Atom.AtomRuntime<
   Layer.Success<ConnectionLayerSource>,
