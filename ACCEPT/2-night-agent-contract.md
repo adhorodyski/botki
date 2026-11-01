@@ -8,13 +8,13 @@ Issue: [adhorodyski/botki#2](https://github.com/adhorodyski/botki/issues/2)
 
 ## Acceptance checklist
 
-- [x] `AGENTS.md` in the fork: verified trim of upstream's (212 → 172 lines, cap 300), product vocabulary (bot / team / ask-assign / hand-off / needs-you / routine / provider), reuse-first rule (three questions + audit table), patterns rule (server `Context.Service` + `Layer`, contracts `Schema`, naming, component style + design tokens, colocated tests, model files per change), night-run conventions, fork-only cut rule — `wc -l AGENTS.md` → **172**; every doc, skill, and lint-rule name it cites exists (`ls docs/internals/`, `ls oxlint-plugin-t3code/rules/`)
+- [x] `AGENTS.md` in the fork: verified trim of upstream's (212 → 177 lines, cap 300), product vocabulary (bot / team / ask-assign / hand-off / needs-you / routine / provider), reuse-first rule (three questions + audit table), patterns rule (server `Context.Service` + `Layer`, contracts `Schema`, naming, component style + design tokens, colocated tests, model files per change), night-run conventions, fork-only cut rule — `wc -l AGENTS.md` → **177**; every doc, skill, and lint-rule name it cites exists (`ls docs/internals/`, `ls oxlint-plugin-t3code/rules/`)
 - [x] `ACCEPT/template.md` in repo root with acceptance checklist, Replay scenario, reference captures, reject criteria, "what we reused", "patterns + model files", run-report convention, and the `ACCEPT/<issue-number>-<slug>.md` naming rule — this file is generated from it
 - [x] First Replay scenario recorded on the Pi path (chat demo) + `test-t3-app` renamed and rewritten as `test-botki-app`, with the capture convention `ACCEPT/captures/<issue>/` — `vp test run apps/server/src/orchestration-v2/testkit/PiReplayFixtures.integration.test.ts` → **9 passed**, `pi_chat_demo` among them; the same two-turn chat verified live in the browser panel on Pi/Haiku 4.5, and captured below
 - [x] An ACCEPT exists for TS1b itself and passes — this file, and every claim in it has a command above
 - [x] Issue-spec template frozen as `.github/ISSUE_TEMPLATE/spec.md` (user story, demo, acceptance checklist, reuse-first audit table, patterns + model files, out of scope, dependencies) + PR template mirrors it (reuse table filled + run-report footer) — `ls .github/ISSUE_TEMPLATE/spec.md .github/pull_request_template.md`
 - [x] Labels exist: `slice`, `night`, `needs-accept`, `agent-context-increase` — `gh label list --repo adhorodyski/botki --json name --jq '.[].name' | grep -E '^(slice|night|needs-accept|agent-context-increase)$'` → all four
-- [ ] `vp run check:changed` green, run-report in the PR body
+- [x] `vp run check:changed` green (format, lint, knip ×2, graphql, typecheck 39 packages, test), run-report in the PR body
 
 ## Replay scenario
 
@@ -46,8 +46,10 @@ Reverted after confirming.
 
 ## Reference captures
 
-`ACCEPT/captures/2/pi-chat-demo-turn-2.png` — the rendered thread after a `pi_chat_demo`
-replay, showing both turns and the recalled marker.
+`ACCEPT/captures/2/pi-chat-demo-history.png` — the thread in the browser panel after the same two
+prompts ran live on Pi / Claude Haiku 4.5: turn one answers `botki chat marker stored`, turn two
+answers `botki chat demo complete botki-chat-demo-9F4K`. Live rather than a replay because the
+picker plays ACP transcripts, so a Pi fixture has no UI replay path (see "Open for the owner").
 
 ## Reject criteria
 
@@ -85,7 +87,7 @@ duplicated (the inbound link from `test-t3-mobile` was updated in the same commi
 - Files added: `ACCEPT/template.md`, `ACCEPT/2-night-agent-contract.md`,
   `.github/ISSUE_TEMPLATE/spec.md`,
   `apps/server/src/orchestration-v2/testkit/fixtures/pi_chat_demo/{input.ts,output.ts,pi_transcript.ndjson}`,
-  `ACCEPT/captures/2/pi-chat-demo-turn-2.png`
+  `ACCEPT/captures/2/pi-chat-demo-history.png`
 - Files renamed: `.agents/skills/test-t3-app/` → `.agents/skills/test-botki-app/`
 - Files rewritten: `AGENTS.md`, `.github/pull_request_template.md`,
   `.github/ISSUE_TEMPLATE/config.yml` (upstream's points at `pingdotgg/t3code` Discussions, which
