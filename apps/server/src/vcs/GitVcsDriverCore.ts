@@ -33,7 +33,10 @@ import {
   type ReviewDiffPreviewSource,
   type VcsRef,
 } from "@t3tools/contracts";
-import { dedupeRemoteBranchesWithLocalMatches } from "@t3tools/shared/git";
+import {
+  dedupeRemoteBranchesWithLocalMatches,
+  isNotARepositoryGitStderr,
+} from "@t3tools/shared/git";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { compactTraceAttributes } from "@t3tools/shared/observability";
 import { decodeJsonResult } from "@t3tools/shared/schemaJson";
@@ -509,7 +512,7 @@ function classifyGitFailure(stderr: string): GitCommandFailureReason | null {
     )
     .join("\n");
   if (diagnostics.length === 0) return null;
-  if (isNonRepositoryGitStderr(diagnostics)) return "not_a_repository";
+  if (isNotARepositoryGitStderr(diagnostics)) return "not_a_repository";
   for (const [pattern, reason] of GIT_FAILURE_REASON_PATTERNS) {
     if (!pattern.test(diagnostics)) continue;
     if (reason === "ref_not_found" && GIT_NOT_A_COMMIT_PATTERN.test(diagnostics)) continue;
@@ -557,9 +560,6 @@ function isMissingGitCwdError(error: GitCommandError): boolean {
   );
 }
 
-function isNonRepositoryGitStderr(stderr: string): boolean {
-  return stderr.toLowerCase().includes("not a git repository");
-}
 function isUnbornHeadStderr(stderr: string): boolean {
   const normalized = stderr.toLowerCase();
   return (
@@ -1405,7 +1405,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     );
     if (commonDirResult.exitCode !== 0) {
       const stderr = commonDirResult.stderr.trim();
-      if (isNonRepositoryGitStderr(stderr)) {
+      if (isNotARepositoryGitStderr(stderr)) {
         return null;
       }
       return yield* new GitCommandError({
@@ -1990,7 +1990,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     }
     let branch: string | null;
     if (branchResult.exitCode !== 0) {
-      if (isNonRepositoryGitStderr(branchResult.stderr)) {
+      if (isNotARepositoryGitStderr(branchResult.stderr)) {
         return NON_REPOSITORY_REMOTE_STATUS_DETAILS;
       }
       if (!isUnbornHeadStderr(branchResult.stderr)) {
@@ -2206,7 +2206,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     }
 
     if (statusResult.exitCode !== 0) {
-      if (isNonRepositoryGitStderr(statusResult.stderr)) {
+      if (isNotARepositoryGitStderr(statusResult.stderr)) {
         return NON_REPOSITORY_STATUS_DETAILS;
       }
       return yield* new GitCommandError({

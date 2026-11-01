@@ -46,6 +46,20 @@ describe("check:changed", () => {
     assert.deepStrictEqual(decide(["docs/user/install.md"], packages, false).affected, []);
   });
 
+  it("gates every job when the change cannot be mapped to a package", () => {
+    const packages = readWorkspace();
+    const unresolved = decide(["mystery/file.ts"], packages, false);
+    assert.deepStrictEqual(
+      unresolved.affected,
+      packages.map((pkg: { name: string }) => pkg.name).sort(),
+    );
+    assert.deepStrictEqual(decide([], packages, true).affected, unresolved.affected);
+    for (const gate of ["typecheck", "build", "test", "test_web", "test_server", "rust"] as const) {
+      assert.isTrue(unresolved.outputs[gate], gate);
+    }
+    assert.strictEqual(unresolved.outputs.test_packages, "");
+  });
+
   it.effect(
     "keeps weighted steps within the budget, in order, and serial steps one at a time",
     () =>

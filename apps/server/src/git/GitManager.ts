@@ -48,6 +48,7 @@ import {
   resolveProjectSettings,
 } from "@t3tools/shared/projectSettings";
 import {
+  isNotARepositoryGitStderr,
   mergeGitStatusParts,
   resolveAutoFeatureBranchName,
   sanitizeBranchFragment,
@@ -189,7 +190,7 @@ type GitActionProgressPayload = StripProgressContext<GitActionProgressEvent>;
 type GitActionProgressEmitter = (event: GitActionProgressPayload) => Effect.Effect<void, never>;
 
 function isNotGitRepositoryError(error: GitCommandError): boolean {
-  return error.message.toLowerCase().includes("not a git repository");
+  return isNotARepositoryGitStderr(error.message);
 }
 
 interface OpenPrInfo {

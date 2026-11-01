@@ -117,12 +117,7 @@ one of those outputs changed, and `T3CODE_RELAY_CLIENT_CONFIG_ENV` redirects it 
 
 ### Deployment CI
 
-The relay is versioned separately from client releases. `.github/workflows/deploy-relay.yml` deploys
-the shared Alchemy `prod` stage on every push to `main`. Stable and nightly release builds both
-resolve their static public config from the same
-`production` GitHub environment. Labeling a same-repository PR `relay:preview` deploys a `pr-<number>`
-stage, and the cleanup workflow tears it down; see
-[`relay-preview.yml`](../../.github/workflows/relay-preview.yml). Developers can
+The relay is versioned separately from client releases and deployed with Alchemy. Developers can
 deploy personal non-production stages locally with any stage name other than `prod`.
 
 The repository must define these Actions variables shared by relay deployments:
