@@ -7,6 +7,7 @@ import {
   formatGeneratedBranchName,
   buildTemporaryWorktreeBranchName,
   flattenTemporaryWorktreeBranchName,
+  isNotARepositoryGitStderr,
   isTemporaryWorktreeBranch,
   normalizeGitRemoteUrl,
   parseOriginUrlFromGitConfig,
@@ -14,6 +15,22 @@ import {
   sanitizeFeatureBranchName,
   WORKTREE_BRANCH_PREFIX,
 } from "./git.ts";
+
+describe("isNotARepositoryGitStderr", () => {
+  it("reads both wordings git uses for a broken gitfile", () => {
+    expect(
+      isNotARepositoryGitStderr(
+        "fatal: not a git repository (or any of the parent directories): .git",
+      ),
+    ).toBe(true);
+    expect(
+      isNotARepositoryGitStderr(
+        "fatal: gitfile does not point to a valid repository: /tmp/wt/.git",
+      ),
+    ).toBe(true);
+    expect(isNotARepositoryGitStderr("fatal: not a valid object name: 'HEAD'")).toBe(false);
+  });
+});
 
 describe("normalizeGitRemoteUrl", () => {
   it("canonicalizes equivalent GitHub remotes across protocol variants", () => {

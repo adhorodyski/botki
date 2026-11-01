@@ -338,6 +338,16 @@ function toLocalStatusPart(status: VcsStatusResult): VcsStatusLocalResult {
   };
 }
 
+// Git 2.56 replaced "not a git repository" with "gitfile does not point to a valid
+// repository" for a broken gitfile, so both wordings mean the same state.
+export function isNotARepositoryGitStderr(stderr: string): boolean {
+  const normalized = stderr.toLowerCase();
+  return (
+    normalized.includes("not a git repository") ||
+    normalized.includes("does not point to a valid repository")
+  );
+}
+
 export function applyGitStatusStreamEvent(
   current: VcsStatusResult | null,
   event: VcsStatusStreamEvent,
