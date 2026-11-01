@@ -110,7 +110,6 @@ function ownersOf(file, packages) {
 }
 
 function decide(files, packages, full) {
-  const all = new Set(packages.map((pkg) => pkg.name));
   let affected = new Set();
   let everything = full || files === null;
   let rust = false;
@@ -126,8 +125,6 @@ function decide(files, packages, full) {
     }
   }
 
-  // Release smoke reads scripts/ itself, not what the scripts tests read.
-  let scriptsChanged = everything;
   if (everything) {
     affected = all;
   } else {
@@ -141,7 +138,6 @@ function decide(files, packages, full) {
         }
       }
     }
-    scriptsChanged = affected.has("@t3tools/scripts");
     for (const [name, deps] of Object.entries(TEST_ONLY_DEPS)) {
       if (deps.some((dep) => affected.has(dep))) affected.add(name);
     }
@@ -163,7 +159,6 @@ function decide(files, packages, full) {
       test_web: has("@t3tools/web"),
       test_server: has("t3"),
       rust: everything || rust,
-      release_smoke: scriptsChanged,
       mobile_native: files === null || files.some((file) => MOBILE_NATIVE.test(file)),
     },
   };

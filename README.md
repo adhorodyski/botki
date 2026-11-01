@@ -83,8 +83,6 @@ Nightly:
 yay -S t3code-nightly-bin
 ```
 
-The AUR packaging is maintained in this repository under [`packaging/aur`](./packaging/aur).
-
 #### Nix (nixpkgs)
 
 ```bash
