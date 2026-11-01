@@ -110,6 +110,7 @@ function ownersOf(file, packages) {
 }
 
 function decide(files, packages, full) {
+  const all = new Set(packages.map((pkg) => pkg.name));
   let affected = new Set();
   let everything = full || files === null;
   let rust = false;
