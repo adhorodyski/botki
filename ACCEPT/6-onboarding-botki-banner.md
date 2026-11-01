@@ -31,12 +31,16 @@ run (or clear the `t3-onboarding-complete` flag in devtools to re-show it).
 
 ## Reference captures
 
-**Pending the primary agent's single integrated browser pass** (this subagent did not start a dev
-server). `ACCEPT/captures/6/welcome-wizard-botki-banner.png` should show the first step of the
-setup wizard ("Connect your computers") with, in the header block, the wordmark row, the title
-`Set up T3 Code`, the step tracker, and directly beneath the title the muted line
-`Botki runs coding agents on a schedule and reports back.` That line inheriting the dialog
-description's grey token (not a bespoke colour) and the tracker/steps being unshifted is the proof.
+`ACCEPT/captures/6/welcome-wizard-botki-banner.png` — the first step of the setup wizard
+("Connect your computers") on a clean dev server: the `T3 Code` wordmark row, and directly beneath
+it the muted line `Botki runs coding agents on a schedule and reports back.`, then the untouched
+Connect / Agents / Projects tracker.
+
+Two things to check in it. The banner inherits the dialog description's grey token rather than a
+bespoke colour, and the tracker is not shifted, so this is a `components/ui` description prop and
+not new styling. And because `WizardHeader` passes `sr-only` to `DialogTitle` whenever `identity`
+is set, `Set up T3 Code` is screen-reader text only: the banner is the first visible line under
+the wordmark, which is why the capture has no visible heading above it.
 
 ## Reject criteria
 
