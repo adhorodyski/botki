@@ -67,6 +67,8 @@ import { assertMuseWorkflowOutput } from "./muse_workflow/output.ts";
 import { assertMuseSubagentV2Output } from "./subagent_v2/muse_output.ts";
 import { assertMuseMultiTurnOutput } from "./multi_turn/muse_output.ts";
 import { assertMuseTurnInterruptOutput } from "./turn_interrupt/muse_output.ts";
+import { piChatDemoInput } from "./pi_chat_demo/input.ts";
+import { assertPiChatDemoOutput } from "./pi_chat_demo/output.ts";
 import { piCompactionInput } from "./pi_compaction/input.ts";
 import { assertPiCompactionOutput } from "./pi_compaction/output.ts";
 import { providerThreadResumeInput } from "./provider_thread_resume/input.ts";
@@ -1325,6 +1327,21 @@ export const ORCHESTRATOR_REPLAY_FIXTURES: ReadonlyArray<OrchestratorReplayFixtu
         modelSelection: MUSE_MODEL_SELECTION,
         runContinuationWorker: true,
         assertOutput: assertMuseWorkflowOutput,
+      },
+    ],
+  },
+  {
+    name: "pi_chat_demo",
+    buildInput: piChatDemoInput,
+    providers: [
+      {
+        driver: ProviderDriverKind.make("pi"),
+        transcriptFile: new URL("./pi_chat_demo/pi_transcript.ndjson", import.meta.url),
+        modelSelection: {
+          ...PI_MODEL_SELECTION,
+          model: "anthropic/claude-haiku-4-5-20251001",
+        },
+        assertOutput: assertPiChatDemoOutput,
       },
     ],
   },

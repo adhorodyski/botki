@@ -1,0 +1,4 @@
+interface:
+  display_name: "Botki App Testing"
+  short_description: "Test web and desktop in Botki's Browser panel"
+  default_prompt: "Use $test-botki-app to verify the affected web or desktop flow through Botki's Browser panel."

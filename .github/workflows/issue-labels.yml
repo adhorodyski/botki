@@ -37,6 +37,26 @@ jobs:
                 color: "fbca04",
                 description: "Issue needs maintainer review and initial categorization.",
               },
+              {
+                name: "slice",
+                color: "ededed",
+                description: "One issue-sized unit of work: one night, one PR.",
+              },
+              {
+                name: "night",
+                color: "1d2f5c",
+                description: "Scheduled for the nightly routine.",
+              },
+              {
+                name: "needs-accept",
+                color: "e9967a",
+                description: "Waiting on the owner to run the slice's ACCEPT checklist.",
+              },
+              {
+                name: "agent-context-increase",
+                color: "1d76db",
+                description: "A maintainer accepts the agent context growth in this PR.",
+              },
             ];
 
             for (const label of managedLabels) {
