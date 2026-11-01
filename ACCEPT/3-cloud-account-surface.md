@@ -72,6 +72,13 @@ them), and the whole `auth/` surface except the Clerk path are untouched or bare
       see that — knip and typecheck resolve through the stale `node_modules` install just built.
       For a dependency cut, regenerate **after** the manifests are final and reproduce the frozen
       install locally; a green knip is not evidence the lockfile agrees.
+- [x] **The desktop build's preload verifier passes on the real bundle** — `vp run build:desktop`
+      then `node apps/desktop/scripts/verify-preload-bundle.mjs` (emulating CI's Linux runner: the
+      bundle's only `window` use sits in a `darwin`-only branch). The verifier asserted the
+      `__clerk_internal_electron_passkeys` global that `exposeClerkBridge` used to install, so it
+      failed the build step while its own unit tests stayed green — those fixtures were inline
+      strings describing the pre-cut preload. `check:changed` cannot see this class of break: it
+      never builds. If a cut touches anything a post-build verifier reads, run the verifier.
 - [x] **`infra/*` is out of `pnpm-workspace.yaml`** — so `infra/relay` can never be re-installed by
       an `i` on a fresh clone.
 - [x] **The docs this PR invalidated are gone, not stale** — `guest-links.md`,
