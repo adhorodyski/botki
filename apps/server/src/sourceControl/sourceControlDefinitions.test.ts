@@ -5,19 +5,18 @@ import {
   sourceControlDefinitions,
 } from "./sourceControlDefinitions.ts";
 
-it("runs a driver for every host the server and clients read, in their order", () => {
-  expect(BUILT_IN_SOURCE_CONTROL_DRIVER_LIST.map((driver) => driver.definition)).toEqual(
-    sourceControlDefinitions.definitions,
-  );
+it("drives no host, so nothing is probed, listed, or signed in to", () => {
+  expect(BUILT_IN_SOURCE_CONTROL_DRIVER_LIST).toEqual([]);
 });
 
-it("reads no forge: neither side claims a host, so a saved one resolves as unknown", () => {
-  expect(BUILT_IN_SOURCE_CONTROL_DRIVER_LIST).toEqual([]);
-  expect(sourceControlDefinitions.definitions).toEqual([]);
+it("still reads the hosts that saved history and remotes name", () => {
   expect(
-    sourceControlDefinitions.parseChangeRequestUrl("https://github.com/o/r/pull/1"),
-  ).toBeNull();
-  expect(sourceControlDefinitions.canonicalRepositoryKey("github.com/owner/repo")).toBe(
+    sourceControlDefinitions.parseChangeRequestUrl("https://github.com/o/r/pull/1")?.link,
+  ).toMatchObject({ repository: "o/r", number: 1 });
+  expect(sourceControlDefinitions.repositoryKeyFromRemote("git@github.com:Owner/Repo.git")).toBe(
     "github.com/owner/repo",
+  );
+  expect(sourceControlDefinitions.recognizeRemote("https://gitlab.com/g/r.git")?.kind).toBe(
+    "gitlab",
   );
 });

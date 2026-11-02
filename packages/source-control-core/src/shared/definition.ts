@@ -209,7 +209,7 @@ export const HostAccountChoice = Schema.Struct({
 export type HostAccountChoice = typeof HostAccountChoice.Type;
 
 /** Per-hostname settings of a host with `credentials`, keyed by lower-case hostname. */
-const hostCredentialSettingsFields = {
+export const hostCredentialSettingsFields = {
   hosts: Schema.Record(SourceControlHostName, HostAccountChoice).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
     Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
@@ -353,7 +353,89 @@ export type SourceControlHostSettingsSchema = {
   readonly fields: Readonly<Record<string, Schema.Top>>;
 } & Schema.Decoder<object>;
 
-function isChangeRequestAuthorityOfProject(
+const FULL_COMMIT_SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/iu;
+
+export function parseCommitPath(url: URL, route: RegExp): CommitLink | null {
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  const match = route.exec(url.pathname);
+  const repository = match?.[1];
+  const sha = match?.[2];
+  return repository && sha && FULL_COMMIT_SHA.test(sha)
+    ? {
+        host: url.hostname.toLowerCase(),
+        repository: repository.toLowerCase(),
+        sha: sha.toLowerCase(),
+        ...(url.port ? { authority: url.host.toLowerCase() } : {}),
+      }
+    : null;
+}
+
+export function buildCommitUrl(
+  { host, repository, sha, remoteUrl, webUrl }: CommitUrlInput,
+  route: string,
+): string | null {
+  if (!repository || !FULL_COMMIT_SHA.test(sha)) return null;
+  try {
+    const url = new URL(webUrl || `${remoteWebOrigin(host, remoteUrl)}/${repository}`);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    url.pathname = changeRequestUrlBelow(url.pathname, `${route}/${sha.toLowerCase()}`);
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads a change request from `url` with `route`, whose first group is the repository path and
+ * second the number.
+ */
+export function parseChangeRequestPath(url: URL, route: RegExp): ParsedChangeRequestUrl | null {
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  const match = route.exec(url.pathname);
+  const repository = match?.[1];
+  const number = Number(match?.[2]);
+  return repository && Number.isSafeInteger(number) && number > 0
+    ? {
+        host: url.hostname.toLowerCase(),
+        repository: repository.toLowerCase(),
+        number,
+        repositoryUrl: `${url.origin}/${repository}`,
+      }
+    : null;
+}
+
+export function changeRequestUrlBelow(webUrl: string, route: string): string {
+  return `${webUrl.replace(/\/+$/u, "")}/${route}`;
+}
+
+/** An HTTP remote on `host` names the server's web origin, port included; SSH remotes do not. */
+export function remoteWebOrigin(host: string, remoteUrl: string | undefined): string {
+  try {
+    const remote = new URL(remoteUrl ?? "");
+    if (
+      (remote.protocol === "http:" || remote.protocol === "https:") &&
+      (remote.hostname.toLowerCase() === host.toLowerCase() ||
+        remote.host.toLowerCase() === host.toLowerCase())
+    ) {
+      return remote.origin;
+    }
+  } catch {
+    // SSH remotes do not specify the server's web origin.
+  }
+  return `https://${host}`;
+}
+
+export function defineSourceControl<const Definition extends SourceControlDefinition>(
+  definition: Definition,
+): Definition {
+  return definition;
+}
+
+export function isChangeRequestAuthorityOfProject(
   identity: ChangeRequestProjectIdentity,
   link: ChangeRequestLink | CommitLink,
 ): boolean {
@@ -370,7 +452,7 @@ function isChangeRequestAuthorityOfProject(
 }
 
 /** The host of the project's repository key, or `kind` when the key has none. */
-function projectChangeRequestHost<const Kind extends string | undefined>(
+export function projectChangeRequestHost<const Kind extends string | undefined>(
   identity: ChangeRequestHostIdentity,
   kind: Kind,
 ): string | Kind {
@@ -379,7 +461,7 @@ function projectChangeRequestHost<const Kind extends string | undefined>(
 }
 
 /** `projectHost` is the project's `changeRequestHost`. */
-function isChangeRequestOnProjectHost(
+export function isChangeRequestOnProjectHost(
   projectHost: string,
   identity: ChangeRequestProjectIdentity,
   link: ChangeRequestLink | CommitLink,
@@ -395,7 +477,7 @@ function projectRepositoryPath(identity: ChangeRequestProjectIdentity): string |
   );
 }
 
-function isChangeRequestInProjectRepository(
+export function isChangeRequestInProjectRepository(
   projectHost: string,
   identity: ChangeRequestProjectIdentity,
   link: ChangeRequestLink | CommitLink,
@@ -443,6 +525,15 @@ function unknownRemoteProvider(remote: GitRemoteHost): SourceControlProviderInfo
     name: remote.host,
     baseUrl: `https://${remote.host}`,
   };
+}
+
+/** What `definition` alone makes of a remote, for a host's own code that asks only about itself. */
+export function recognizeRemoteWith(
+  definition: Pick<SourceControlDefinition, "recognizeRemote">,
+  remoteUrl: string,
+): SourceControlProviderInfo | null {
+  const remote = parseGitRemoteHost(remoteUrl);
+  return remote === null ? null : definition.recognizeRemote(remote);
 }
 
 function defaultRepositorySelector(
