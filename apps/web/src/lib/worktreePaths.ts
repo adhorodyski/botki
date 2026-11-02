@@ -1,6 +1,6 @@
 import { normalizeProjectPathForComparison } from "@t3tools/shared/path";
 
-import type { ThreadShell } from "./types";
+import type { ThreadShell } from "../types";
 
 export function getOrphanedWorktreePathForThread(
   threads: ReadonlyArray<Pick<ThreadShell, "id" | "worktreePath">>,

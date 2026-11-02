@@ -55,28 +55,6 @@ const RESTRICTED_UI_VARIANT_PATTERNS = [
   },
 ];
 
-const RESTRICTED_PULL_REQUEST_GLYPH_IMPORTS = {
-  name: "lucide-react",
-  importNames: [
-    "GitMerge",
-    "GitMergeIcon",
-    "GitPullRequest",
-    "GitPullRequestIcon",
-    "GitPullRequestArrow",
-    "GitPullRequestArrowIcon",
-    "GitPullRequestClosed",
-    "GitPullRequestClosedIcon",
-    "GitPullRequestDraft",
-    "GitPullRequestDraftIcon",
-    "GitPullRequestCreate",
-    "GitPullRequestCreateIcon",
-    "GitPullRequestCreateArrow",
-    "GitPullRequestCreateArrowIcon",
-  ],
-  message:
-    "Pick a glyph by meaning from PullRequestGlyph in apps/web/src/components/pullRequest/pullRequestIcons.tsx so every surface draws the same pull request the same way.",
-};
-
 export default defineConfig({
   run: {
     cache: { scripts: false },
@@ -264,10 +242,7 @@ export default defineConfig({
       "typescript/require-array-sort-compare": "off",
       "typescript/restrict-template-expressions": "off",
       "typescript/unbound-method": "off",
-      "eslint/no-restricted-imports": [
-        "error",
-        { paths: [...RESTRICTED_IMPORT_PATHS, RESTRICTED_PULL_REQUEST_GLYPH_IMPORTS] },
-      ],
+      "eslint/no-restricted-imports": ["error", { paths: RESTRICTED_IMPORT_PATHS }],
       "t3code/no-global-process-runtime": "error",
       "t3code/no-inline-schema-compile": "error",
       "t3code/no-low-value-comments": "error",
@@ -368,15 +343,11 @@ export default defineConfig({
           "eslint/no-restricted-imports": [
             "error",
             {
-              paths: [...RESTRICTED_IMPORT_PATHS, RESTRICTED_PULL_REQUEST_GLYPH_IMPORTS],
+              paths: RESTRICTED_IMPORT_PATHS,
               patterns: RESTRICTED_UI_VARIANT_PATTERNS,
             },
           ],
         },
-      },
-      {
-        files: ["apps/web/src/components/pullRequest/pullRequestIcons.tsx"],
-        rules: { "eslint/no-restricted-imports": ["error", { paths: RESTRICTED_IMPORT_PATHS }] },
       },
       {
         // The server and every client load a forge's shared definition, so a UI runtime
@@ -386,7 +357,7 @@ export default defineConfig({
           "eslint/no-restricted-imports": [
             "error",
             {
-              paths: [...RESTRICTED_IMPORT_PATHS, RESTRICTED_PULL_REQUEST_GLYPH_IMPORTS],
+              paths: RESTRICTED_IMPORT_PATHS,
               patterns: [
                 {
                   group: [
@@ -421,7 +392,7 @@ export default defineConfig({
           "eslint/no-restricted-imports": [
             "error",
             {
-              paths: [...RESTRICTED_IMPORT_PATHS, RESTRICTED_PULL_REQUEST_GLYPH_IMPORTS],
+              paths: RESTRICTED_IMPORT_PATHS,
               patterns: [
                 {
                   group: [

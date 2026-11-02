@@ -101,11 +101,7 @@ vi.mock(import("../../state/use-atom-command"), async (original) => {
 import { AppAtomRegistryProvider, appAtomRegistry } from "../../rpc/atomRegistry";
 import { allReachableShellsLiveAtom } from "../../state/shell";
 import { selectThreadDiffPanelSelection, useDiffPanelStore } from "../../diffPanelStore";
-import {
-  selectActiveRightPanel,
-  selectActiveRightPanelSurface,
-  useRightPanelStore,
-} from "../../rightPanelStore";
+import { selectActiveRightPanel, useRightPanelStore } from "../../rightPanelStore";
 import { DesktopWebLinkCoordinator } from "./DesktopWebLinkCoordinator";
 
 const discoverySettled = allReachableShellsLiveAtom as Atom.Writable<boolean>;
@@ -127,18 +123,6 @@ const project = {
   },
 } as EnvironmentProject;
 const pullRequestUrl = "https://github.com/Effect-TS/effect/pull/9339";
-const pullRequestView = {
-  to: "/pull-requests",
-  search: {
-    involvement: "all",
-    state: "all",
-    repository: "effect-ts/effect",
-    number: 9339,
-    selectedHost: "github.com",
-    selectedProjectId: projectId,
-    selectedEnvironmentId: environmentId,
-  },
-};
 
 const pairingUrl = "https://vps.example.com/pair#token=ABC123";
 const pairLink = `t3code://pair?pairingUrl=${encodeURIComponent(pairingUrl)}`;
@@ -185,22 +169,14 @@ async function mount(...urls: string[]) {
   return stack.move();
 }
 
-it("holds a launch PR link until project discovery settles, then opens the PR view", async () => {
+// One issue is one PR, so the app opens no change-request view: a host's PR link is a page
+// like any other, and it never waits for project discovery.
+it("opens a launch pull request link like any other link, without waiting for discovery", async () => {
   setup();
   await using _coordinator = await mount(pullRequestUrl);
   expect(state.navigate).not.toHaveBeenCalled();
-  expect(state.openScratchProject).not.toHaveBeenCalled();
-
-  state.projects = [project];
-  const navigated = new Promise<void>((resolve) => {
-    state.navigate.mockImplementationOnce(async () => resolve());
-  });
-  await act(async () => {
-    appAtomRegistry.set(discoverySettled, true);
-    await navigated;
-  });
-  expect(state.navigate).toHaveBeenCalledExactlyOnceWith(pullRequestView);
-  expect(state.openScratchProject).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(state.openScratchProject).toHaveBeenCalledOnce());
+  expect(state.openLink).not.toHaveBeenCalled();
 });
 
 const sha = "a".repeat(40);
@@ -246,23 +222,20 @@ it.each([
   expect(state.openLink).not.toHaveBeenCalled();
 });
 
-it("opens a PR commit the workspace lacks in the thread's PR panel", async () => {
+it("opens a commit the workspace lacks like any other delivered link", async () => {
   setup();
   state.routeParams = { environmentId: "local", threadId: "thread" };
   state.projects = [project];
   state.preview.mockResolvedValueOnce(AsyncResult.success({ sources: [] }));
   appAtomRegistry.set(discoverySettled, true);
   await using _coordinator = await mount(commitUrl);
-  await vi.waitFor(() =>
-    expect(
-      selectActiveRightPanelSurface(useRightPanelStore.getState().byThreadKey, threadRef),
-    ).toMatchObject({ kind: "pull-request", repository: "effect-ts/effect", number: 9339 }),
-  );
+  await vi.waitFor(() => expect(state.openScratchProject).toHaveBeenCalledOnce());
   expect(useDiffPanelStore.getState().byThreadKey).toEqual({});
+  expect(useRightPanelStore.getState().byThreadKey).toEqual({});
   expect(state.openLink).not.toHaveBeenCalled();
 });
 
-it("opens a plain commit the workspace lacks like any other delivered link", async () => {
+it("opens a plain host commit the workspace lacks like any other delivered link", async () => {
   setup();
   state.routeParams = { environmentId: "local", threadId: "thread" };
   state.projects = [project];
@@ -329,21 +302,20 @@ it("pairs with Local environment disabled, where there is no primary environment
   );
 });
 
-it("holds a launch PR link with Local environment disabled until discovery settles", async () => {
+it("holds a launch commit link with Local environment disabled until discovery settles", async () => {
   setup();
   state.localEnvironmentDisabled = true;
-  await using _coordinator = await mount(pullRequestUrl);
-  expect(state.navigate).not.toHaveBeenCalled();
-  expect(state.openScratchProject).not.toHaveBeenCalled();
-
+  state.routeParams = { environmentId: "local", threadId: "thread" };
   state.projects = [project];
-  const navigated = new Promise<void>((resolve) => {
-    state.navigate.mockImplementationOnce(async () => resolve());
-  });
-  await act(async () => {
-    appAtomRegistry.set(discoverySettled, true);
-    await navigated;
-  });
-  expect(state.navigate).toHaveBeenCalledExactlyOnceWith(pullRequestView);
-  expect(state.openScratchProject).not.toHaveBeenCalled();
+  await using _coordinator = await mount(commitUrl);
+  expect(state.preview).not.toHaveBeenCalled();
+
+  await act(async () => appAtomRegistry.set(discoverySettled, true));
+  await vi.waitFor(() =>
+    expect(state.preview).toHaveBeenCalledExactlyOnceWith({
+      environmentId,
+      input: expect.objectContaining({ cwd: "/workspace/effect", commitSha: sha }),
+    }),
+  );
+  expect(state.navigate).not.toHaveBeenCalled();
 });

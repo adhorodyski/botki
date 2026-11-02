@@ -5,7 +5,7 @@ import type {
   ChangeRequestTerminology,
   SourceControlDefinition,
 } from "@t3tools/client-runtime/source-control-clients";
-import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
+import { GitPullRequestArrowIcon } from "lucide-react";
 import { SourceControlIconArtwork } from "./components/SourceControlIconArtwork";
 
 export type { ChangeRequestTerminology } from "@t3tools/client-runtime/source-control-clients";
@@ -17,7 +17,7 @@ const SOURCE_CONTROL_ICONS = new WeakMap<SourceControlDefinition, SourceControlI
 /** One component per definition, so a host's icon keeps its identity across renders. */
 export function sourceControlIcon(definition: SourceControlDefinition): SourceControlIcon {
   const artwork = definition.icon;
-  if (artwork === null) return PullRequestGlyph.pullRequest;
+  if (artwork === null) return GitPullRequestArrowIcon;
   let Icon = SOURCE_CONTROL_ICONS.get(definition);
   if (Icon === undefined) {
     Icon = (props: { className?: string }) => (
@@ -52,9 +52,4 @@ export function getSourceControlPresentation(
 ): SourceControlPresentation {
   const definition = sourceControlClients.get(provider?.kind);
   return presentDefinition(definition, provider?.name || definition.label);
-}
-
-export function getSourceControlPresentationForKind(kind: string): SourceControlPresentation {
-  const definition = sourceControlClients.get(kind);
-  return presentDefinition(definition, definition.label);
 }

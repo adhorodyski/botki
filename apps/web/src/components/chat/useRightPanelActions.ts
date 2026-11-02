@@ -28,7 +28,6 @@ import { focusActivePanelTerminal, focusTerminal } from "../../lib/terminalFocus
 import { subscribePreviewAction } from "../preview/previewActionBus";
 import { floatDeviceSurface } from "../preview/agentOpenedPreviews";
 import { browserMiniPlayerSource, usePreviewMiniPlayerStore } from "../../previewMiniPlayerStore";
-import type { threadPullRequestPanelTarget } from "../pullRequest/pullRequestDetail.logic";
 import type { useDeviceState } from "../../state/device";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { openDeviceSetupDialog } from "./ChatOverlayHosts";
@@ -42,7 +41,6 @@ interface RightPanelActionsInput {
   readonly activePreviewState: ThreadPreviewState;
   readonly deviceState: ReturnType<typeof useDeviceState>["state"];
   readonly deviceStateLoaded: boolean;
-  readonly pullRequestPanelTarget: ReturnType<typeof threadPullRequestPanelTarget> | null;
   readonly threadPanelPresentation: ThreadPanelPresentation;
   readonly isServerThread: boolean;
   /** A side chat pane; the main view already answers preview bus actions. */
@@ -55,8 +53,6 @@ interface RightPanelActionsInput {
   readonly rightPanelOpen: boolean;
   readonly canMaximizeRightPanel: boolean;
   readonly rightPanelMaximized: boolean;
-  readonly supportsPullRequests: boolean;
-  readonly pullRequestsSurfaceAvailable: boolean;
   readonly gitCwd: string | null;
   readonly activeProjectCwd: string | null;
   readonly explicitDiffOpenRef: { current: ScopedThreadRef | null };
@@ -65,8 +61,8 @@ interface RightPanelActionsInput {
 }
 
 /**
- * Opening, closing, and arranging the right panel's surfaces: browser, diff, files, pull
- * requests, device, and terminal tabs.
+ * Opening, closing, and arranging the right panel's surfaces: browser, diff, files,
+ * device, and terminal tabs.
  */
 export function useRightPanelActions(input: RightPanelActionsInput) {
   const {
@@ -77,7 +73,6 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     activePreviewState,
     deviceState,
     deviceStateLoaded,
-    pullRequestPanelTarget,
     threadPanelPresentation,
     isServerThread,
     embedded,
@@ -89,8 +84,6 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     rightPanelOpen,
     canMaximizeRightPanel,
     rightPanelMaximized,
-    supportsPullRequests,
-    pullRequestsSurfaceAvailable,
     gitCwd,
     activeProjectCwd,
     explicitDiffOpenRef,
@@ -147,11 +140,6 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     useRightPanelStore.getState().open(activeThreadRef, "files");
   };
   const addFilesSurfaceStable = useStableCallback(addFilesSurface);
-  const addPullRequestsSurface = () => {
-    if (!activeThreadRef || !pullRequestsSurfaceAvailable) return;
-    useRightPanelStore.getState().open(activeThreadRef, "pull-requests");
-  };
-  const addPullRequestsSurfaceStable = useStableCallback(addPullRequestsSurface);
   const addDeviceSurface = () => {
     if (!activeThreadRef) return;
     if (!deviceState.onboardingCompleted || deviceState.hostStatus === "disabled") {
@@ -291,12 +279,6 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     );
   };
   const copyRightPanelFilePathStable = useStableCallback(copyRightPanelFilePath);
-  const addPullRequestSurface = () => {
-    if (!supportsPullRequests || activeThreadRef === null || pullRequestPanelTarget === null)
-      return;
-    useRightPanelStore.getState().openPullRequest(activeThreadRef, pullRequestPanelTarget);
-  };
-  const addPullRequestSurfaceStable = useStableCallback(addPullRequestSurface);
   const onOpenTurnDiff = (runId: RunId, filePath?: string) => {
     if (!isServerThread || !activeThreadRef) return;
     const diffOpen =
@@ -346,8 +328,6 @@ export function useRightPanelActions(input: RightPanelActionsInput) {
     addDeviceSurfaceStable,
     addDiffSurfaceStable,
     addFilesSurfaceStable,
-    addPullRequestSurfaceStable,
-    addPullRequestsSurfaceStable,
     closePreviewPanelStable,
     copyRightPanelFilePathStable,
     createBrowserSurface,

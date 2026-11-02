@@ -186,6 +186,19 @@ export function getRenderablePatch(
   }
 }
 
+/** Only rendered hunks can anchor comments; list others off-diff. */
+export function isLineInFileDiff(
+  file: FileDiffMetadata,
+  side: "left" | "right",
+  line: number,
+): boolean {
+  return file.hunks.some((hunk) =>
+    side === "left"
+      ? line >= hunk.deletionStart && line < hunk.deletionStart + hunk.deletionCount
+      : line >= hunk.additionStart && line < hunk.additionStart + hunk.additionCount,
+  );
+}
+
 /** Uses the parser-decoded filename, including Git's quoted and escaped names. */
 export function resolveFileDiffPath(fileDiff: FileDiffMetadata): string {
   return fileDiff.name ?? fileDiff.prevName ?? "";

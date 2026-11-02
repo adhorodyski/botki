@@ -916,14 +916,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["address bar duckduckgo google bing brave kagi ecosia custom"],
   },
   {
-    id: "pull-request-links-open-in-app",
-    title: "Open pull requests in T3 Code",
-    to: "/settings/diffs",
-    searchTerms: [
-      `pr commit links ${SOURCE_CONTROL_HOST_LABELS} browser external click default pull request view panel`,
-    ],
-  },
-  {
     id: "browser-auto-show-floating-preview",
     title: "Auto-show floating preview",
     to: "/settings/browser",
@@ -944,13 +936,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [
       `pull request ${SOURCE_CONTROL_HOST_LABELS} squash co-authored-by attribution claude codex generated`,
     ],
-  },
-  {
-    id: "pull-request-merge-method",
-    title: "Default merge method",
-    to: "/settings/source-control",
-    scope: "project-defaults",
-    searchTerms: ["pull request merge squash rebase last selected"],
   },
   {
     id: "source-control",
@@ -1110,14 +1095,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/connections",
     searchTerms: [
       "automatic machine environment resources cpu memory capacity preference weight shared projects",
-    ],
-  },
-  {
-    id: "pull-request-routing",
-    title: "Pull request sharing",
-    to: "/settings/connections",
-    searchTerms: [
-      `pull request routing trusted environments shared credentials permissions read actions source control ${SOURCE_CONTROL_HOST_LABELS}`,
     ],
   },
   {
