@@ -1326,7 +1326,7 @@ const WsProjectsCreateFromThreadRpc = Rpc.make(WS_METHODS.projectsCreateFromThre
 const WsBotsListRpc = Rpc.make(WS_METHODS.botsList, {
   payload: Schema.Struct({}),
   success: BotSnapshot,
-  error: EnvironmentAuthorizationError,
+  error: Schema.Union([BotMutationError, EnvironmentAuthorizationError]),
 });
 
 const WsBotsMutateRpc = Rpc.make(WS_METHODS.botsMutate, {

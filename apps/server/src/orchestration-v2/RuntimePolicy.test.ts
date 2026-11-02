@@ -15,6 +15,7 @@ import * as Stream from "effect/Stream";
 
 import type { ProviderInstance } from "@t3tools/provider-core/server/driver";
 import * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegistry.ts";
+import * as BotInstructions from "../bots/BotInstructions.ts";
 import * as ProjectStore from "./ProjectStore.ts";
 import * as RuntimePolicy from "./RuntimePolicy.ts";
 
@@ -73,7 +74,13 @@ const providerInstanceFor = (instanceId: ProviderInstanceId) =>
     },
   }) as ProviderInstance;
 
+// Plain threads only here, so staging is stubbed; BotInstructions.test.ts covers the file.
+const layerBotInstructions = Layer.mock(BotInstructions.BotInstructions)({
+  stageForTurn: () => Effect.succeed(null),
+});
+
 const layerTest = RuntimePolicy.layerFromProjectStore.pipe(
+  Layer.provide(layerBotInstructions),
   Layer.provide(
     Layer.succeed(ProviderInstanceRegistry.ProviderInstanceRegistry, {
       getInstance: (instanceId) => Effect.succeed(providerInstanceFor(instanceId)),

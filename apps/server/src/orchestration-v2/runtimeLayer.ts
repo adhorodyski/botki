@@ -55,14 +55,20 @@ import * as ThreadForkService from "./ThreadForkService.ts";
 import * as TurnItemPositionStore from "./TurnItemPositionStore.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
+import * as BotInstructions from "../bots/BotInstructions.ts";
+import * as BriefMemorySource from "../bots/BriefMemorySource.ts";
 
 export const layerEventInfrastructure = Layer.mergeAll(
   OrchestrationEventStore.layer,
   OrchestrationCommandReceipts.layer,
 );
 
+// The per-turn instructions file a provider session reads. BotService itself is provided with
+// the other server services, so both the WebSocket handlers and this graph share one instance.
+const layerBotInstructions = BotInstructions.layer.pipe(Layer.provide(BriefMemorySource.layer));
+
 const layerRuntimePolicyProvided = RuntimePolicy.layerFromProjectStore.pipe(
-  Layer.provide(ProjectStore.layer),
+  Layer.provide(Layer.merge(ProjectStore.layer, layerBotInstructions)),
 );
 
 const layerEventStoreProvided = EventStore.layerFromOrchestrationEventStore.pipe(
