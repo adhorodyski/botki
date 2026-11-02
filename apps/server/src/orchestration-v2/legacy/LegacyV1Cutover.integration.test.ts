@@ -778,11 +778,9 @@ describe("orchestration v2 legacy v1 cutover", () => {
                   },
                 ],
               );
-              assert.equal(active.thread.linkedPullRequest?.number, 9100);
-              assert.deepStrictEqual(
-                active.thread.pullRequests?.map((pullRequest) => pullRequest.number),
-                [9100],
-              );
+              // The v1 rows still hold the link; the cutover carries none forward.
+              assert.isNull(active.thread.linkedPullRequest);
+              assert.deepStrictEqual(active.thread.pullRequests, []);
 
               const archived = yield* projections.getThreadProjection(
                 ThreadId.make(ARCHIVED_THREAD),
