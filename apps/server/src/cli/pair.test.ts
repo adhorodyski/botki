@@ -369,6 +369,36 @@ describe("t3 pair", () => {
 
   // Without the capability `tailscale serve` blocks on an enablement URL, so
   // pairing must stop at status instead of spawning it.
+  // regression: #18 a plain clone's dev server keeps its state in the clone's
+  // own `.t3`, which is not where the pre-#18 lookup ever looked.
+  it.effect("pairs with a server whose state lives in the plain clone's own .t3", () =>
+    withDescriptorServer((origin) =>
+      Effect.gen(function* () {
+        const clone = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-pair-clone-test-"));
+        NodeFS.mkdirSync(NodePath.join(clone, ".git"));
+        yield* persistServerRuntimeState({
+          path: NodePath.join(clone, ".t3", "userdata", "server-runtime.json"),
+          state: yield* makePersistedServerRuntimeState({
+            config: { host: "127.0.0.1", devUrl: undefined },
+            port: Number(new URL(origin).port),
+          }),
+        });
+
+        const inertHome = NodePath.join(clone, "real-home");
+        NodeFS.mkdirSync(NodePath.join(inertHome, ".t3", "userdata"), { recursive: true });
+        const output = yield* captureStdout(
+          runCli(["pair"]).pipe(
+            Effect.provideService(HostProcess.WorkingDirectory, clone),
+            Effect.provideService(HostProcess.HomeDirectory, inertHome),
+          ),
+        );
+
+        assert.include(output, "Pairing URL:");
+        assert.deepEqual(NodeFS.readdirSync(NodePath.join(inertHome, ".t3", "userdata")), []);
+      }),
+    ).pipe(Effect.provide(NodeServices.layer)),
+  );
+
   it.effect("explains a tailnet without HTTPS serve instead of running tailscale serve", () =>
     withDescriptorServer((origin) =>
       Effect.gen(function* () {
