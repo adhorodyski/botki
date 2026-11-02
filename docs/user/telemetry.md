@@ -6,11 +6,16 @@ event-loop monitor, and OTLP export you configure yourself) is unchanged.
 
 ## Mobile app crash reports
 
-When the iOS or Android app crashes or hits an error, it sends a report to T3 Code: the error
-message, the stack trace, the app version, and the device model and OS version. Each launch also
-sends startup timings, and every report carries a random ID for the install. Reports go through
-the T3 Connect relay to Axiom. They do not include your threads, prompts, or connection details,
-but an error message can quote a value the app was handling.
+The mobile app's crash reporting is still upstream's and is the one path in this fork that
+sends anything off the device. When the iOS or Android app crashes or hits an error, it sends a
+report: the error message, the stack trace, the app version, and the device model and OS version,
+keyed by a random per-install ID. Reports go to the OpenTelemetry receiver configured in the app
+build, which defaults to upstream's hosted dataset. They do not include your threads, prompts, or
+connection details, but an error message can quote a value the app was handling.
+
+The mobile cloud surface, this included, is scheduled to be cut (TS9). Until then it is opt-out:
+turn off **Send crash reports** in **Settings → About → Diagnostics**. The web and desktop clients
+send nothing; there is no switch for them because there is nothing to switch.
 
 To stop sending them, turn off **Send crash reports** in **Settings > About T3 Code > Diagnostics**.
 

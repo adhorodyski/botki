@@ -1,151 +1,109 @@
-# T3 Code
+# Botki
 
-T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
+Botki is a self-hosted team of coding agents that works on your repositories while you
+sleep. You point it at a repo, tell each bot which slice of the backlog it owns, and it
+builds, verifies, and opens a pull request overnight — so the only thing you read in the
+morning is the queue of work that genuinely needs you.
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, Google Antigravity, and fx. If they're set up on your computer, T3 Code can control them.
+It is a fork of [t3code](https://github.com/pingdotgg/t3code) by [T3 Tools](https://t3.gg).
+What survived the fork is the hard part: the event-sourced orchestrator, the provider
+adapters, checkpointing, and the web and desktop clients. What we removed was the parts
+of a developer's editor that a night shift does not need — account auth, hosted relay,
+guest shares, forge and pull-request integrations, the code editor, and telemetry.
+Attribution is in [NOTICE](./NOTICE); the license is [MIT](./LICENSE).
 
-## "Wait, what are you selling me?"
+<!-- Screenshot placeholder: needs-you queue. Add docs/assets/botki-needs-you.png
+     and replace this comment with an image once the queue screen has a real look. -->
 
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
+## Quickstart
 
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the editor that you want.
+Install [Vite+](https://vite.plus), whose `vp` command runs this repo's dev, test, and
+build tasks and provides the Node version pinned in the `engines` field of
+[`package.json`](./package.json) — so you do not install Node separately:
 
-## Installation
-
-> [!WARNING]
-> T3 Code currently supports Codex, Claude, Cursor, Grok Build, OpenCode, Antigravity, and fx. Install and authenticate at least one provider before use:
->
-> - Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
-> - Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
-> - Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
-> - Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
-> - OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
-> - Antigravity: enable it in Settings, then use **Install Antigravity** and **Sign in with Google**. No CLI is required.
-> - fx: install [fx](https://fx.sh) and run `fx login` on the machine running the T3 Code server ([setup guide](./docs/user/providers-fx.md))
-
-### Command line
-
-```bash
-curl -fsSL https://t3.codes/install.sh | sh
+```sh
+curl -fsSL https://vite.plus | bash    # macOS / Linux
+irm https://vite.plus/ps1 | iex        # Windows
 ```
 
-On Windows, in PowerShell:
+Then, in a fresh clone:
 
-```powershell
-irm https://t3.codes/install.ps1 | iex
+```sh
+git clone https://github.com/adhorodyski/botki
+cd botki
+vp i                                  # install dependencies
+vp run dev --home-dir ./.t3           # server + web app, state in this checkout
 ```
 
-Then run `t3` to start the server and open the local web app. `t3 service install` keeps it running in the background, `t3 update` moves to a newer release, and `t3 --help` has the full reference.
+If you would rather not install `vp` globally, enable the pinned `pnpm` with `corepack
+enable` and run the same steps through it. `pnpm dev:desktop` below is exactly that form.
 
-To try it once without installing, run `npx t3@latest` instead.
+**Point `--home-dir` at the checkout.** A plain clone is not a linked `git worktree`, and only
+a linked worktree gets its own `.t3` by default; in a bare clone, bare `vp run dev` resolves
+state to `~/.t3`, which is wherever your real install keeps its database. Passing `--home-dir`
+makes the sandbox explicit and cannot land you on shared state by accident. If you work in a
+linked worktree (`git worktree add`), omit it and the dev runner picks that worktree's `.t3`
+for you.
 
-### Desktop app
+`vp run dev` prints a `pairingUrl:` — open that in a browser rather than the bare origin,
+which will not authenticate a new browser.
 
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), or from your favorite package registry:
+Prefer the desktop app? It runs against the same local server:
 
-#### Windows (`winget`)
-
-```bash
-winget install T3Tools.T3Code
+```sh
+pnpm dev:desktop --home-dir ./.t3
 ```
 
-#### Windows (`scoop`)
+Bring some real data into the sandbox before you test anything that an empty database
+makes uninteresting — `vp run migrate-dev-db` rebuilds your worktree's database from a
+read-only copy of an existing install. See
+[AGENTS.md](./AGENTS.md#test-data) for what that keeps and what it deliberately drops.
 
-```bash
-scoop install extras/t3code
-```
+## Providers
 
-#### macOS (Homebrew)
+Botki drives the agent CLIs already installed on your machine; it brings no model of its
+own. Install and authenticate at least one before your first run:
 
-```bash
-brew install --cask t3-code
-```
+| Provider    | Install                                                     | Sign in               |
+| ----------- | ----------------------------------------------------------- | --------------------- |
+| Pi          | `npm i -g --ignore-scripts @earendil-works/pi-coding-agent` | `pi`, then `/login`   |
+| Claude Code | [Claude Code](https://claude.com/product/claude-code)       | `claude auth login`   |
+| Codex       | [Codex CLI](https://developers.openai.com/codex/cli)        | `codex login`         |
+| OpenCode    | [OpenCode](https://opencode.ai)                             | `opencode auth login` |
 
-#### Debian, Ubuntu (`.deb`)
+Pi is the reference provider: it is what the tests, the fixtures, and the docs assume.
+The others stay in the tree because upstream maintains their adapters, but nothing we
+ship depends on them.
 
-Download the `.deb` from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), then:
+## How a night works
 
-```bash
-sudo apt install ./T3-Code-*.deb
-```
+One issue becomes one slice, one slice becomes one night and one pull request. A bot picks
+up a spec'd issue, does the work, verifies it against the acceptance checklist written for
+that slice, and opens a PR with a run report: what it ran, what passed, and what it
+deliberately did not touch. Work it cannot finish becomes a draft PR with the blocker in
+your queue rather than silence.
 
-#### Arch Linux (AUR)
-
-Stable:
-
-```bash
-yay -S t3code-bin
-```
-
-Nightly:
-
-```bash
-yay -S t3code-nightly-bin
-```
-
-#### Nix (nixpkgs)
-
-```bash
-nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code
-```
-
-The package is maintained in [nixpkgs](https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/by-name/t3/t3code)
-and includes the desktop app (`t3code-desktop`) and the `t3` command.
-See [Nix installation](./docs/user/install.md#nix-nixpkgs) for NixOS configuration and updates.
-
-## Some notes
-
-We are very very early in this project. Expect bugs.
-
-We are (mostly) not accepting contributions yet. Small fixes may be considered. Big features will not be.
+The details that keep an unattended run from doing damage — the verification bar, the
+reuse bar, and never killing a process by name pattern — are in
+[AGENTS.md](./AGENTS.md).
 
 ## Documentation
 
-Full docs live in [docs/](./docs). There's no docs site yet.
+Docs live in [docs/](./docs). There is no docs site.
 
 - [FAQ](./docs/user/faq.md)
 - [Install and first run](./docs/user/install.md)
-- [Permission modes](./docs/user/permission-modes.md)
-- [Keyboard shortcuts](./docs/user/keybindings.md)
-- [Project settings](./docs/user/project-settings.md)
-- [Appearance preferences](./docs/user/appearance.md)
 - [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Connect Claude Code, Codex, ChatGPT and other agents over MCP](./docs/user/outside-agents.md)
-- [Keeping app and server in sync](./docs/user/updating.md)
-- [Source control integrations](./docs/user/source-control.md)
-- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- [Run T3 Code as a background service](./docs/user/background-service.md)
+- [Permission modes](./docs/user/permission-modes.md)
+- [Project settings](./docs/user/project-settings.md)
+- [Run the server as a background service](./docs/user/background-service.md)
+- [Connect outside agents over MCP](./docs/user/outside-agents.md)
+- [Keyboard shortcuts](./docs/user/keybindings.md)
 
-Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md).
+Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md),
+and read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a PR.
 
-## If you REALLY want to contribute still.... read this first
+## Status
 
-### Install `vp`
-
-T3 Code uses Vite+ so you'll need to install the global `vp` command-line tool.
-
-#### macOS / Linux
-
-```bash
-curl -fsSL https://vite.plus | bash
-```
-
-#### Windows
-
-```bash
-irm https://vite.plus/ps1 | iex
-```
-
-Checkout their getting started guide for more information: https://viteplus.dev/guide/
-
-### Install dependencies
-
-```bash
-vp i
-```
-
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before reporting a bug or opening a PR.
-
-Have a feature request? Start an [Ideas discussion](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
-
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
+Early. The nightly loop is the product and it is where the bugs are. Expect to read the
+run reports.

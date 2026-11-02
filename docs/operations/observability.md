@@ -406,13 +406,15 @@ Counters tell you volume and failure rate:
 
 Webhooks have their own families:
 
-- `t3_webhook_deliveries_total` by `outcome` and `source` (`relay` or `direct`). Beyond what the
-  sender sees, `queue_full` means a task already had its limit of deliveries waiting,
-  `prompt_too_long` means the filled-in prompt passed the provider limit, and `duplicate` means
-  the relay delivered a request this environment had already run.
+- `t3_webhook_deliveries_total` by `outcome` and `source`. Every request this fork handles arrives
+  directly, so `source` is always `direct`; `relay` stays in the label set for the relay surface
+  that TS9 owns. Beyond what the sender sees, `queue_full` means a task already had its limit of
+  deliveries waiting, `prompt_too_long` means the filled-in prompt passed the provider limit, and
+  `duplicate` means a request was replayed after this environment had already run it.
 - `t3_webhook_runs_total` by `outcome` (`started`, `skipped`, `failed`) for the runs those
   deliveries start, which happen after the sender has its answer.
-- `t3_webhook_held_delay` for how long requests the relay held waited before arriving.
+- `t3_webhook_held_delay` for how long a relay-held request waited before arriving. Nothing
+  holds requests on the direct path, so this stays at zero until the relay returns.
 
 - `t3_secret_requests_total` by `status` (`saved`, `declined`, `cancelled`, `timed_out`) for secrets
   agents asked users for, and `t3_secret_refs_consumed_total` by `result` (`used`, `rejected`) for
@@ -420,8 +422,8 @@ Webhooks have their own families:
 
 `ScheduledTaskService.triggerWebhook` spans carry the same outcome per request, and each run
 started from a delivery is its own `ScheduledTaskService.runWebhookDelivery` trace. For a request
-the relay forwarded, the span also goes to the T3 Connect trace export as a child of the relay's
-span; requests that reach the environment directly never join a sender's trace.
+a relay, the span also goes to the relay's trace export as a child of the relay's span. Requests
+that reach the environment directly, which is every request today, never join a sender's trace.
 
 Use metrics when the question is:
 

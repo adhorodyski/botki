@@ -4,13 +4,13 @@ The Android app receives Firebase Cloud Messaging (FCM) data messages through FC
 Push account is not required. This fork deleted the hosted relay that used to send them, so these
 steps cover the app-side build only; the sender returns with the mobile slice.
 
-The old delivery runbooks (the relay's smoke and watch scripts, hosted deployment, and Clerk
-sign-in for private builds) described code this fork no longer carries and are gone; mobile auth
-and notification delivery are the mobile slice's to document again.
+The old delivery runbooks (the relay's smoke and watch scripts, hosted deployment, and the cloud
+sign-in that private builds used) described code this fork no longer carries and are gone; mobile
+auth and notification delivery are the mobile slice's (TS9) to document again.
 
 ## Android compatibility and automated checks
 
-The app's minimum is Android 7.0 (API 24), declared in `app.config.ts` and enforced by the relay's device-registration schema. Compile/target SDK versions follow the locked Expo/React Native toolchain (currently API 36). Notification channels begin at API 26; the notification permission prompt begins at API 33. Live Update promotion requires API 36 and remains subject to system settings and device support. Alerts and ordinary activity cards work below API 36.
+The app's minimum is Android 7.0 (API 24), declared in `app.config.ts`. Compile/target SDK versions follow the locked Expo/React Native toolchain (currently API 36). Notification channels begin at API 26; the notification permission prompt begins at API 33. Live Update promotion requires API 36 and remains subject to system settings and device support. Alerts and ordinary activity cards work below API 36.
 
 On Android 16+, open T3 Code Settings → Live Update Settings to allow status bar chips. Android controls this separately from notification permission. The chip reads `Working` during work, `Approve` for approvals, and `Answer` for input requests; completed work returns to a normal notification. Use an Android 16 QPR2 or newer emulator image to verify the shipped promotion behavior.
 

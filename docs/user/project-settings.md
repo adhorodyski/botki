@@ -98,9 +98,12 @@ Leaving an edited form asks before discarding unsaved changes.
 
 In **Settings → Scheduled tasks**, choose **On webhook**
 as a task's schedule to run it whenever another service calls its URL, such as
-GitHub on a new pull request or a CI job that failed. A public URL needs a
-[T3 Connect](remote-access.md) managed tunnel; after you save the task, copy
-its URL from the editor. Without one, the editor shows only the URL's path.
+GitHub on a new pull request or a CI job that failed. The caller has to reach
+your server, so a service on the internet needs a route to it that it can
+actually dial: your own reverse proxy, a tailnet address, or a port forward.
+[Remote access](remote-access.md) covers the routes. After you save the task,
+copy its URL from the editor. When the server has no reachable address, the
+editor shows only the URL's path.
 **Rotate** replaces the URL and the old one stops working.
 
 The prompt decides what the agent sees. Placeholders pull values out of the
@@ -153,14 +156,12 @@ always replace the persisted payload. Coalesced updates count toward a separate
 On desktop and web, pick **Deliveries** from a task's menu to see recent
 requests and the prompt each one produced.
 
-If the environment is offline, the sender gets an error and nothing runs;
-redeliver from the sender, such as GitHub's **Recent Deliveries**, once it is
-back. To have T3 Connect keep requests instead, turn on **Hold webhooks while
-offline** in **Settings → Sharing & access**. T3 Connect then stores requests to a
-T3 Connect URL for up to 24 hours and delivers them when the environment
-returns. Leave it off if you don't want request bodies stored outside your
-machine. To skip requests that waited too long, set **Skip requests older
-than** on the task.
+Nothing is held up front for an offline environment: if the environment is
+down, the sender gets an error and nothing runs, so redeliver from the sender,
+such as GitHub's **Recent Deliveries**, once it is back. Request bodies never sit
+on someone else's queue because there is no queue; the request reaches your
+machine or it does not. To skip requests the sender retried for too long, set
+**Skip requests older than** on the task.
 
 ## Defaults and inheritance
 

@@ -25,11 +25,7 @@ Yes.
 
 ## How much does T3 Code cost?
 
-Nothing. There's no way to pay us to use T3 Code. You bring your own sub. It is free and open source (MIT). You still pay your provider like you already do. T3 Connect is free too, for now. Every account can connect up to 3 machines running T3 Code. Phones and browsers that connect to them do not count. Need more? Link a paid T3 Chat account. [More machines](#can-i-connect-more-than-3-machines-with-t3-connect) We don't want to charge for this, but if the bill gets unacceptable we may have to change course. If you hit limits or have issues, you can always fork it, self host, or use Tailscale. [Install](./install.md)
-
-## Can I connect more than 3 machines with T3 Connect?
-
-Yes. Link your T3 Chat account and T3 Connect raises your limit: up to 10 machines with T3 Chat Pro, or 100 with Premier. Open your account menu in T3 Code, go to **T3 Chat**, and select **Link T3 Chat**. Sign in to T3 Chat and approve. The free T3 Chat plan keeps the normal limit of 3. [More machines with T3 Chat](./remote-access.md#more-machines-with-t3-chat)
+Nothing. There is no account, no seat count, and no hosted tier to buy. It is free and open source (MIT). You still pay your provider like you already do. Run it on as many machines as you like and connect as many phones and browsers as you can reach them from; each one pairs directly. [Install](./install.md)
 
 ## Why is my Claude 5-hour limit draining so fast?
 
@@ -37,15 +33,15 @@ T3 Code drives Claude through Anthropic's Agent SDK. I confirmed it's a real bug
 
 ## How do I use T3 Code remotely?
 
-Your agents run wherever T3 Code runs: your desktop, a server, a VPS. You connect to it from anywhere. I do this constantly. Less than 5% of my prompts run on my laptop. Run `npx t3 up` on that machine and you get really good remote support. T3 Connect is the easy path. LAN pairing and Tailscale work too, and [app.t3.codes](https://app.t3.codes) is the web client. [Remote access](./remote-access.md)
+Your agents run wherever Botki runs: your desktop, a server, a VPS. You connect to it from anywhere. I do this constantly. Less than 5% of my prompts run on my laptop. Run `npx t3 up` on that machine, then pair from the other device. It works over the local network, Tailscale, any VPN that gives the devices addresses, or SSH. There is no relay in the middle, so the host has to be reachable. [Remote access](./remote-access.md)
 
 ## How do I use T3 Code on my phone?
 
-Get the [iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code) app, then connect it to your computer with T3 Connect or a pairing link. The phone is a remote. Your computer does the work and needs to stay on. [Mobile setup](./install.md#mobile-app) · [Remote access](./remote-access.md)
+Get the [iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code) app, then connect it to your computer with a pairing link. The phone is a remote. Your computer does the work and needs to stay on. [Mobile setup](./install.md#mobile-app) · [Remote access](./remote-access.md)
 
-## Why does T3 Connect keep disconnecting?
+## Why does my connection keep dropping?
 
-T3 Connect is our built-in alternative to Tailscale for remote connections. If it keeps dropping, open **Settings > Environments**, find the machine, and select **Details**. The first part marked as failed is the cause. I will not be disappointed if you set up Tailscale as a fallback (I do this personally). [T3 Connect troubleshooting](./t3-connect-troubleshooting.md)
+Open **Settings > Environments**, find the machine, and select **Details**. The first route marked as failed is the cause. With no relay of anyone else's in the path, a drop is a network fact: the address stopped answering. Tailscale makes that boring, and I run it as a fallback myself. [Connection troubleshooting](./t3-connect-troubleshooting.md)
 
 ## Will I get banned for using my subscription?
 

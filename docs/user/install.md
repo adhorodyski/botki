@@ -1,23 +1,46 @@
-# Install T3 Code
+# Install
 
-T3 Code runs coding agents on your computer and lets you control them from its
+Botki runs coding agents on your computer and lets you control them from its
 desktop, web, or mobile app. Set up the machine where the agents will work first.
+
+This fork ships no installer and no release train of its own: you install it from
+source. The `t3` commands below are what that build gives you once
+[you have built it](../../README.md#quickstart), or what an upstream release
+installs if you are trying the harness before forking it.
 
 ## Requirements
 
 You need an installed, authenticated provider before starting a thread. You can
-launch T3 Code and configure providers afterwards.
+launch Botki and configure providers afterwards.
 
-## Command line
+## From source
 
 ```bash
-curl -fsSL https://t3.codes/install.sh | sh
+git clone https://github.com/adhorodyski/botki
+cd botki
+vp i && vp run build:desktop
+```
+
+Then run the server from the checkout, or link the built CLI onto your `PATH`:
+
+```bash
+node apps/server/dist/bin.mjs
+```
+
+## The upstream installer (reference)
+
+Upstream ships a shell installer that fetches a release archive. It installs the
+`t3` binary the same way, and `T3CODE_RELEASE_BASE_URL` points it at a different
+repository's releases if you publish your own.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pingdotgg/t3code/main/scripts/install.sh | sh
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-irm https://t3.codes/install.ps1 | iex
+irm https://raw.githubusercontent.com/pingdotgg/t3code/main/scripts/install.ps1 | iex
 ```
 
 This installs the `t3` binary to `~/.local/bin`. If your shell reports `command not found`
@@ -43,7 +66,7 @@ If `t3` or `t3 start` reports an already running server, connect to that server
 instead. Stop it before starting a replacement, or use a different `--base-dir`
 for an independent server.
 
-To try T3 Code once without installing it, run `npx t3@latest` instead (needs
+To try it once without installing it, run `npx t3@latest` instead (needs
 Node.js for `npx`).
 
 ### Intel Macs
@@ -63,26 +86,27 @@ update it with `git pull` and a rebuild.
 
 ## Desktop app
 
-Download a release from [GitHub Releases](https://github.com/pingdotgg/t3code/releases),
-or use a package manager:
+Build it from the same checkout:
 
-| Platform           | Install                                                      |
-| ------------------ | ------------------------------------------------------------ |
-| Windows            | `winget install T3Tools.T3Code`                              |
-| macOS              | `brew install --cask t3-code`                                |
-| Debian, Ubuntu     | `sudo apt install ./T3-Code-*.deb`                           |
-| Arch Linux         | `yay -S t3code-bin`                                          |
-| Arch Linux nightly | `yay -S t3code-nightly-bin`                                  |
-| Nix                | `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code` |
+```bash
+vp run build:desktop     # the CLI plus the desktop bundle
+vp run dist:desktop:dmg  # a macOS disk image, or :linux / :win for those targets
+```
 
-The `.deb` updates itself like the other desktop builds. It asks for your
-password to install each update. If your desktop has no password prompt, the
-update fails. Download the new `.deb` and install it the same way.
+To run it against a local dev server while you work on it, use `vp run dev:desktop`
+(or `pnpm dev:desktop`). It starts its own local server and reaches it over loopback;
+no pairing step sits between the desktop app and the machine it runs on.
+
+The upstream project publishes signed builds for Windows, macOS, Debian/Ubuntu, Arch,
+and Nix, and its package-manager instructions still apply to
+[upstream releases](https://github.com/pingdotgg/t3code/releases). None of those
+packages contains this fork.
 
 ### Nix (nixpkgs)
 
-T3 Code is maintained in [nixpkgs](https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/by-name/t3/t3code).
-The command above installs from `nixos-unstable` and requires Nix 2.30 or later with
+Upstream is maintained in [nixpkgs](https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/by-name/t3/t3code),
+so `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code` installs an upstream
+build. It requires Nix 2.30 or later with
 `nix-command` and `flakes` enabled. Launch the desktop app with `t3code-desktop`;
 the package also includes the `t3` command.
 
@@ -136,7 +160,7 @@ Install T3 Code from the
 [App Store](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or
 [Google Play](https://play.google.com/store/apps/details?id=com.t3tools.t3code).
 The phone connects to a server on another machine. Follow
-[remote access](./remote-access.md) to link it through T3 Connect or a pairing URL.
+[remote access](./remote-access.md) to link it with a pairing URL.
 
 Store links and QR codes are also available in **Settings → About → Mobile app**
 on web and desktop. The store apps work with both stable and Nightly servers. Test builds are optional:
