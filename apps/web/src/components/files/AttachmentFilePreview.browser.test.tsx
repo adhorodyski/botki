@@ -2498,6 +2498,26 @@ async function workspacePdfPreview() {
   };
 }
 
+// Each Playwright action is a CDP round trip that costs several hundred ms once the full browser
+// project runs concurrently, and the Vitest action timeout is whatever the 15s task has left, so a
+// toolbar-driven walk through this viewer flakes on the round trips, not on pdf.js. These press and
+// read the toolbar in-page; each test still makes one real Playwright click for hit-testing.
+function pdfToolbar(screen: Screen) {
+  return {
+    press: (label: string) =>
+      act(async () => {
+        screen.container.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!.click();
+      }),
+    // A reload waits on pdf.js parsing a fresh document in its worker, not on a frame.
+    showsPage: (text: string) =>
+      vi.waitFor(
+        () =>
+          expect(screen.container.querySelector('[aria-live="polite"]')?.textContent).toBe(text),
+        10_000,
+      ),
+  };
+}
+
 function pdfScroll(screen: Screen) {
   const region = () => screen.container.querySelector<HTMLElement>('[role="region"]')!;
   const canvas = (page: number) =>
@@ -2520,13 +2540,14 @@ it("keeps workspace PDF scroll and zoom after reloads", async () => {
   using fixture = await workspacePdfPreview();
   const { preview, urls } = fixture;
   await using screen = await render(preview(urls.original, "one"));
-  await expect.element(screen.getByText("1 / 3 pages", { exact: true })).toBeVisible();
+  const toolbar = pdfToolbar(screen);
+  await toolbar.showsPage("1 / 3 pages");
   await screen.getByRole("button", { name: "Next page", exact: true }).click();
-  await vi.waitFor(() => expect(screen.container.textContent).toContain("2 / 3 pages"));
-  await screen.getByRole("button", { name: "Next page", exact: true }).click();
-  await vi.waitFor(() => expect(screen.container.textContent).toContain("3 / 3 pages"));
+  await toolbar.showsPage("2 / 3 pages");
+  await toolbar.press("Next page");
+  await toolbar.showsPage("3 / 3 pages");
   for (let index = 0; index < 4; index++) {
-    await screen.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await toolbar.press("Zoom in");
   }
   const { region, offset, scrollTo } = pdfScroll(screen);
   const zoom = screen.container.textContent!.match(/\d+%/)![0];
@@ -2538,7 +2559,7 @@ it("keeps workspace PDF scroll and zoom after reloads", async () => {
   });
   const savedOffset = offset(3);
   await screen.rerender(preview(urls.updated, "two"));
-  await expect.element(screen.getByText("3 / 3 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("3 / 3 pages");
   await vi.waitFor(() => {
     expect(screen.container.querySelector('[role="region"]')?.textContent).toContain(
       "Updated budget",
@@ -2547,29 +2568,29 @@ it("keeps workspace PDF scroll and zoom after reloads", async () => {
     expect(region().scrollLeft).toBe(80);
     expect(offset(3)).toBeCloseTo(savedOffset, 0);
   });
-  await screen.getByRole("button", { name: "Previous page", exact: true }).click();
-  await vi.waitFor(() => expect(screen.container.textContent).toContain("2 / 3 pages"));
-  await screen.getByRole("button", { name: "Fit width", exact: true }).click();
+  await toolbar.press("Previous page");
+  await toolbar.showsPage("2 / 3 pages");
+  await toolbar.press("Fit width");
   await scrollTo({ top: region().scrollTop + 30 });
   const fitOffset = offset(2);
   await screen.rerender(preview(urls.original, "fit-width"));
-  await expect.element(screen.getByText("2 / 3 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("2 / 3 pages");
   await vi.waitFor(() => {
     expect(screen.container.textContent).toContain("Fit width");
     expect(region().scrollLeft).toBe(0);
     expect(offset(2)).toBeCloseTo(fitOffset, 0);
   });
-  await screen.getByRole("button", { name: "Previous page", exact: true }).click();
-  await vi.waitFor(() => expect(screen.container.textContent).toContain("1 / 3 pages"));
-  await screen.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await toolbar.press("Previous page");
+  await toolbar.showsPage("1 / 3 pages");
+  await toolbar.press("Zoom in");
   const firstPageZoom = screen.container.textContent!.match(/\d+%/)![0];
   await screen.rerender(preview(urls.original, "first-page"));
-  await expect.element(screen.getByText("1 / 3 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("1 / 3 pages");
   await vi.waitFor(() => expect(screen.container.textContent).toContain(firstPageZoom));
-  await screen.getByRole("button", { name: "Next page", exact: true }).click();
-  await vi.waitFor(() => expect(screen.container.textContent).toContain("2 / 3 pages"));
+  await toolbar.press("Next page");
+  await toolbar.showsPage("2 / 3 pages");
   await screen.rerender(preview(urls.original, "one", "/repo/another.pdf"));
-  await expect.element(screen.getByText("1 / 3 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("1 / 3 pages");
   await vi.waitFor(() => {
     expect(screen.container.textContent).toContain("Fit width");
     expect(region().scrollTop).toBe(0);
@@ -2581,11 +2602,12 @@ it("clamps workspace PDF scroll when pages shrink or disappear", async () => {
   using fixture = await workspacePdfPreview();
   const { preview, urls } = fixture;
   await using screen = await render(preview(urls.original, "one"));
-  await expect.element(screen.getByText("1 / 3 pages", { exact: true })).toBeVisible();
+  const toolbar = pdfToolbar(screen);
+  await toolbar.showsPage("1 / 3 pages");
   await screen.getByRole("button", { name: "Next page", exact: true }).click();
-  await expect.element(screen.getByText("2 / 3 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("2 / 3 pages");
   for (let index = 0; index < 4; index++) {
-    await screen.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await toolbar.press("Zoom in");
   }
   const { region, canvas, offset, scrollTo } = pdfScroll(screen);
   const zoom = screen.container.textContent!.match(/\d+%/)![0];
@@ -2593,7 +2615,7 @@ it("clamps workspace PDF scroll when pages shrink or disappear", async () => {
   await scrollTo({ top: secondPageTop + 600, left: 80 });
   await vi.waitFor(() => expect(region().scrollTop).toBeCloseTo(secondPageTop + 600, 0));
   await screen.rerender(preview(urls.shrunk, "smaller-page"));
-  await expect.element(screen.getByText("2 / 3 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("2 / 3 pages");
   await vi.waitFor(() => {
     expect(screen.container.textContent).toContain(zoom);
     expect(region().scrollLeft).toBe(80);
@@ -2601,16 +2623,16 @@ it("clamps workspace PDF scroll when pages shrink or disappear", async () => {
     expect(offset(2)).toBeLessThan(canvas(2).getBoundingClientRect().height);
   });
   await screen.rerender(preview(urls.shorter, "three"));
-  await expect.element(screen.getByText("2 / 2 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("2 / 2 pages");
   await vi.waitFor(() => {
     expect(screen.container.querySelector('[role="region"]')?.textContent).toContain(
       "Updated milestones",
     );
   });
   await screen.rerender(preview(urls.single, "four"));
-  await expect.element(screen.getByText("1 / 1 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("1 / 1 pages");
   await screen.rerender(preview(urls.original, "five"));
-  await expect.element(screen.getByText("1 / 3 pages", { exact: true })).toBeVisible();
+  await toolbar.showsPage("1 / 3 pages");
 });
 
 it("unwraps one text attachment without turning off the word wrap setting", async () => {
