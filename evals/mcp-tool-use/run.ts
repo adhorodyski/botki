@@ -409,16 +409,10 @@ const enabledWhen = (predicate: () => boolean) =>
       )
       .map((tool) => `${T3_PREFIX}${tool.name}`),
   );
-// T3 does not offer these to a delegated child, so its harness never lists them.
-const hiddenFromSubagents = enabledWhen(McpInvocationContext.hiddenFromSubagents);
 // The Linked environments beta starts off, and T3 lists its tools only while it is on.
 const hiddenWhileLinksOff = enabledWhen(McpInvocationContext.hiddenWhileLinksOff);
-const visibleT3Tools = (options: { readonly subagent?: boolean; readonly links?: boolean }) =>
-  t3Tools.filter(
-    (tool) =>
-      (options.links === true || !hiddenWhileLinksOff.has(tool.name)) &&
-      !(options.subagent === true && hiddenFromSubagents.has(tool.name)),
-  );
+const visibleT3Tools = (options: { readonly links?: boolean }) =>
+  t3Tools.filter((tool) => options.links === true || !hiddenWhileLinksOff.has(tool.name));
 
 /**
  * T3's Claude Code options for an eval thread: its system prompt append and its hooks. `device` says
@@ -761,7 +755,7 @@ export const makeSample = (testCase: McpToolUseCase, base: Base): Sample => {
       ({ number }) => pullRequest(repo, { number }).url,
     ),
     ...priorCalls.flatMap((call) =>
-      ["link_pull_request", "watch_pull_request"].includes(call.tool) && isRecord(call.input)
+      call.tool === "link_pull_request" && isRecord(call.input)
         ? [pullRequest(repo, call.input).url]
         : call.tool === "link_pull_requests" &&
             isRecord(call.input) &&
@@ -1092,11 +1086,6 @@ const t3Default = (sample: Sample, name: string, input: Readonly<Record<string, 
         remaining: sample.linked.size,
       };
     }
-    case "watch_pull_request":
-      sample.linked.add(pr().url);
-      return { ...pr(), watching: true, wasWatching: false };
-    case "unwatch_pull_request":
-      return { ...pr(), watching: false, wasWatching: true };
     case "list_thread_pull_requests":
       return {
         pullRequests: [...sample.linked].map((url) => ({
@@ -1210,9 +1199,6 @@ const searchTools = (base: Base, query: string, max: number) => {
   const found = base.deferred.filter((tool) => hits(tool).length > 0);
   return found.toSorted((a, b) => hits(b).length - hits(a).length).slice(0, max);
 };
-
-const SUBAGENT_WATCH_ERROR =
-  "This thread is a subagent, so it cannot watch pull requests. Its parent thread owns the pull request: finish your task and report back instead.";
 
 /** Result for a native tool the case does not mock, other than shell, file, and web tools. */
 const nativeResult = (name: string, input: Readonly<Record<string, unknown>>) => {
@@ -1390,10 +1376,6 @@ const answerToolCall = Effect.fn("evaluateMcpToolUse.answerToolCall")(function* 
         : withProductFields(name, mock, testCase.setup.role === "delegated-child"),
     );
   if (isT3Name(call.name)) {
-    // T3 refuses a watch from a delegated child.
-    if (name === "watch_pull_request" && testCase.setup.role === "delegated-child") {
-      return failed(SUBAGENT_WATCH_ERROR);
-    }
     const value = t3Default(sample, name, input);
     return toolResult(
       call.id,

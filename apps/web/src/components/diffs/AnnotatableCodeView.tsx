@@ -18,8 +18,14 @@ import {
   type ReviewCommentContext,
 } from "~/reviewCommentContext";
 
-import { nextFileCommentId } from "../files/fileCommentAnnotations";
 import { DiffCommentAnnotation } from "./DiffCommentAnnotation";
+
+let commentSequence = 0;
+
+function nextCommentId(): string {
+  commentSequence += 1;
+  return `file-comment-${Date.now()}-${commentSequence}`;
+}
 import { StyledDiffCodeView, type StyledDiffCodeViewOptions } from "./StyledDiffCodeView";
 
 interface DiffCommentAnnotationEntry {
@@ -225,7 +231,7 @@ export function AnnotatableCodeView({
     if (!range) return;
     const item = context.item;
     if (item.type !== "diff") return;
-    const id = nextFileCommentId();
+    const id = nextCommentId();
     const filePath = resolveFileDiffPath(item.fileDiff);
     const comment = buildDiffReviewComment({
       id,

@@ -1070,7 +1070,7 @@ it.effect("hides tools for links and refuses another environment while the beta 
   ).pipe(Effect.provide(NodeHttpServer.layerTest)),
 );
 
-it.effect("lists pull request watch tools only to threads that are not delegated children", () =>
+it.effect("lists the pull request toolkit without the watch and review-guide tools", () =>
   Effect.scoped(
     Effect.gen(function* () {
       const scopeFor = (
@@ -1106,7 +1106,8 @@ it.effect("lists pull request watch tools only to threads that are not delegated
           Layer.mergeAll(
             McpToolAccessTestkit.liveThreadsLayer,
             Layer.mock(ProjectService.ProjectService)({}),
-            Layer.mock(PullRequestReviewGuideService.PullRequestReviewGuideService)({}),
+            Layer.mock(Orchestrator.OrchestratorV2)({}),
+            Layer.mock(ProjectionStore.ProjectionStoreV2)({}),
             Layer.mock(Orchestrator.OrchestratorV2)({}),
             Layer.mock(ProjectionStore.ProjectionStoreV2)({}),
             NodeServices.layer,
@@ -1149,12 +1150,13 @@ it.effect("lists pull request watch tools only to threads that are not delegated
 
       const parentTools = yield* listedTools("parentToken");
       const childTools = yield* listedTools("childToken");
-      expect(parentTools).toEqual(
-        expect.arrayContaining(["link_pull_request", "watch_pull_request", "unwatch_pull_request"]),
-      );
-      expect(childTools).toContain("link_pull_request");
-      expect(childTools).not.toContain("watch_pull_request");
-      expect(childTools).not.toContain("unwatch_pull_request");
+      for (const tools of [parentTools, childTools]) {
+        expect(tools).toContain("link_pull_request");
+        expect(tools).not.toContain("watch_pull_request");
+        expect(tools).not.toContain("unwatch_pull_request");
+        expect(tools).not.toContain("write_pull_request_guides");
+        expect(tools).not.toContain("read_pull_request_guide");
+      }
     }),
   ).pipe(Effect.provide(NodeHttpServer.layerTest)),
 );

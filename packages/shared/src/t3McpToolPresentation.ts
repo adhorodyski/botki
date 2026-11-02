@@ -114,26 +114,7 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
     "list-prs",
     "pull-request",
   ),
-  watch_pull_request: tool(
-    ["Watch", "Watching", "Watching", "a pull request"],
-    "watch-pr",
-    "pull-request",
-  ),
-  unwatch_pull_request: tool(
-    ["Stop watching", "Unwatching", "Stopped watching", "a pull request"],
-    "unwatch-pr",
-    "pull-request",
-  ),
-  write_pull_request_guides: tool(
-    ["Write", "Writing", "Started writing", "review guides"],
-    "write-pr-guides",
-    "pull-request",
-  ),
-  read_pull_request_guide: tool(
-    ["Read", "Reading", "Read", "a review guide"],
-    "read-pr-guide",
-    "pull-request",
-  ),
+
   orchestrator_capabilities: tool(
     ["Get", "Getting", "Got", "orchestration capabilities"],
     "capabilities",

@@ -35,9 +35,7 @@ interface RightPanelFileProps {
   readonly projectName: string | null;
   readonly workspaceRoot: string | undefined;
   readonly availableEditors: ReadonlyArray<EditorId>;
-  readonly pendingSurfaceIds: ReadonlySet<string>;
   readonly onOpenFile: (relativePath: string) => void;
-  readonly onPendingChange: (relativePath: string, pending: boolean) => void;
 }
 
 export function RightPanelSurfaceContent(props: {
@@ -154,8 +152,6 @@ export function RightPanelSurfaceContent(props: {
                 .navigateFolder(threadRef, surface.id, relativePath, folderTrail, keepSource)
             }
             folderTrail={surface.folderTrail}
-            onPendingChange={files.onPendingChange}
-            selectedFilePending={surface.kind === "file" && files.pendingSurfaceIds.has(surface.id)}
             workspaceMutationId={props.workspaceMutationId}
           />
         </Suspense>
