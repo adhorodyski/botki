@@ -6,12 +6,11 @@ That version travels through four layers, and a missing entry means something di
 one. No type distinguishes those meanings and no single file states the whole path, which is what
 this page is for.
 
-The failure is on record rather than hypothetical. The interface doc above
-[GitLab's `getFileRevisions`](../../packages/source-control-gitlab/src/server/GitLabPullRequestCli.ts) once said
-the opposite of the code beneath it, because it described a missing path the way the layer below
-means it. Anything written against that reading would treat a version the host declined to give as
-a file the change request deleted, which reports every file a reader has cleared as changed across
-a project the token cannot see.
+The failure is on record rather than hypothetical. A provider's `getFileRevisions` interface doc once
+said the opposite of the code beneath it, because it described a missing path the way the layer
+below means it. Anything written against that reading would treat a version the host declined to
+give as a file the change request deleted, which reports every file a reader has cleared as changed
+across a project the token cannot see.
 
 ## An absence changes meaning at the provider boundary
 
@@ -22,18 +21,15 @@ means the read could not say. A provider's `getFileRevisions` converts on the wa
 host looked at and has no version for arrives as the empty string, and absence is kept for what
 the provider never got to look at. Absence below the boundary does not survive it.
 
-What "never got to look at" is belongs to the host, and the contract cannot know any of them:
+What "never got to look at" is belongs to the host, and the contract cannot know any of them: one
+provider reads every version off a single iteration listing, so a change too long to follow to its
+end leaves the paths past that point out; another reads them off the change request's own patch, so
+a patch cut short at a byte ceiling leaves the paths past the cut out; a third asks in batches, so a
+batch it could not read leaves that batch's paths out. This fork registers no forge, so no provider
+runs those reads here, but the boundary keeps the shape upstream's providers satisfy and the shapes
+above it still depend on.
 
-- [Azure DevOps](../../packages/source-control-azure-devops/src/server/AzureDevOpsPullRequestProvider.ts) reads every
-  version off one iteration listing, so a change too long to follow to its end leaves the paths
-  past that point out.
-- [Bitbucket](../../packages/source-control-bitbucket/src/server/BitbucketPullRequestApi.ts) reads them off the
-  pull request's own patch, the only place it states a file's version, so a patch cut short at the
-  byte ceiling leaves the paths past the cut out.
-- [GitLab](../../packages/source-control-gitlab/src/server/GitLabPullRequestCli.ts) asks in batches, so a batch
-  it could not read leaves that batch's paths out.
-
-Those three facts stay with their providers. The contract states only that absence means the read
+Those facts stay with their providers. The contract states only that absence means the read
 could not say, which is the half a provider must convert to.
 
 ## Three nulls, and the empty string is not one of them

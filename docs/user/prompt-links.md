@@ -1,7 +1,7 @@
 # Prompt links
 
-A prompt link opens T3 Code with a prompt ready to send. Use one to share a prompt on social
-media, or to put a one-click fix in a pull request comment.
+A prompt link opens the app with a prompt ready to send. Use one to share a prompt with a
+colleague, or to put a one-click fix in a change request comment.
 
 A link never runs anything. It opens a draft. You read the prompt, then press Send. A link cannot
 change your permission mode, branch, or worktree. Your own defaults apply.
@@ -14,10 +14,13 @@ and the model you picked. Sent messages have a **Copy prompt link** button too.
 
 You can also write a link by hand:
 
+Replace `<server>` with the address your server answers on, such as
+`http://192.168.1.20:3773` or your tailnet hostname.
+
 ```
-https://app.t3.codes/new?prompt=Rate%20my%20swearing
-https://app.t3.codes/new?prompt=Fix%20the%20build&repo=owner/name&provider=codex&model=gpt-5.5
-https://app.t3.codes/new?pr=owner/name/123&prompt=Fix%20the%20failing%20check
+https://<server>/new?prompt=Rate%20my%20swearing
+https://<server>/new?prompt=Fix%20the%20build&repo=owner/name&provider=codex&model=gpt-5.5
+https://<server>/new?pr=owner/name/123&prompt=Fix%20the%20failing%20check
 ```
 
 | Parameter  | Meaning                                                                       |
@@ -32,9 +35,8 @@ Encode the prompt for a URL. In JavaScript, use `encodeURIComponent`.
 
 ## Open a link
 
-On app.t3.codes, the link first asks where to open it: the desktop or mobile app, this browser
-when it is connected to a machine, or the download page. Select **Remember my choice** to skip
-this step next time.
+A link opened in a browser that is not already connected to a machine asks where to open it: the
+desktop or mobile app, or this browser. Select **Remember my choice** to skip this step next time.
 
 - **No `repo`**: the draft opens without a project, on the machine you used last.
 - **`repo`**: the draft opens in your most recently used project for that repository. A fork
@@ -47,7 +49,7 @@ this step next time.
   worktree. T3 Code checks the code out only after you confirm, because the checkout runs your
   setup script on it.
 
-A thread link with a prompt, such as `https://app.t3.codes/<environment>/<thread>?prompt=…`,
+A thread link with a prompt, such as `https://<server>/<environment>/<thread>?prompt=…`,
 puts the prompt in that thread's composer. If you already typed a draft there, T3 Code asks
 before it replaces it.
 

@@ -77,16 +77,14 @@ workspace state with the provider conversation. A provider that cannot roll back
 must reject that operation before changing the filesystem.
 
 Thread settlement is server-owned. The
-[settlement service](../../apps/server/src/orchestration-v2/ThreadSettlementService.ts) evaluates PR
-and inactivity settings without a connected client. Merge notifications invalidate cached PR state
-and trigger a check. A merge outside T3, such as an agent running `gh pr merge`, sends no
-notification, so the [PR sync reactor](../../apps/server/src/orchestration-v2/PullRequestSyncReactor.ts)
-re-reads a thread's open links when a run that ran a merge or close command ends. Each forge's
-definition names its CLI's commands in `changeRequestCloseCommand`. The guarded
+[settlement service](../../apps/server/src/orchestration-v2/ThreadSettlementService.ts) settles a
+thread on inactivity alone, without a connected client: this fork registers no forge, so there is
+no pull-request state to poll and no merge notification to react to. `sidebarAutoSettleOnMerge`
+stays in the settings schema so stored rows decode, but decides nothing. The guarded
 `thread.auto-settle` command rejects newer activity, explicit settlement overrides, and live or
 blocked work. It records the activity timestamp for stable
 sorting and detaches idle provider sessions. Clients render the persisted result; they do not
-derive settlement from their own clocks or PR caches.
+derive settlement from their own clocks.
 
 ## Waiting for asynchronous work
 
