@@ -9,7 +9,6 @@ import type * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import type * as FileSystem from "effect/FileSystem";
 import type { HttpClient, HttpClientError, HttpClientResponse } from "effect/http";
-import * as Layer from "effect/Layer";
 import type * as Scope from "effect/Scope";
 
 import type { SourceControlDefinition } from "../shared/definition.ts";
@@ -89,16 +88,3 @@ export interface SourceControlDriver {
     SourceControlDriverServices | Scope.Scope
   >;
 }
-
-export const defineSourceControlDriver = (driver: SourceControlDriver): SourceControlDriver =>
-  driver;
-
-/**
- * `make` over a host's own `services`, built into the caller's scope so they live as long as the
- * instance that holds them.
- */
-export const withOwnServices = <A, R, ROut, RIn>(
-  make: Effect.Effect<A, never, R>,
-  services: Layer.Layer<ROut, never, RIn>,
-): Effect.Effect<A, never, Exclude<R, ROut> | RIn | Scope.Scope> =>
-  Layer.build(services).pipe(Effect.flatMap((context) => make.pipe(Effect.provide(context))));

@@ -142,46 +142,6 @@ function unknownAuth(detail?: string): SourceControlProviderAuth {
   return providerAuth({ status: "unknown", detail });
 }
 
-export function combinedAuthOutput(input: SourceControlAuthProbeInput): string {
-  const parts: string[] = [];
-  for (const entry of [input.stdout, input.stderr]) {
-    if (entry.trim().length > 0) {
-      parts.push(entry);
-    }
-  }
-  return parts.join("\n");
-}
-
-function sanitizedAuthLines(text: string): ReadonlyArray<string> {
-  const lines: string[] = [];
-  for (const entry of text.split(/\r?\n/)) {
-    const line = entry.trim();
-    if (line.length === 0) continue;
-    if (/^[-\s]*token(?:\s+scopes?)?:/iu.test(line)) continue;
-    lines.push(line);
-  }
-  return lines;
-}
-
-export function firstSafeAuthLine(text: string): string | undefined {
-  return sanitizedAuthLines(text)[0];
-}
-
-export function parseCliHost(text: string): string | undefined {
-  return sanitizedAuthLines(text)
-    .map((line) => line.replace(/^[^a-z0-9]+/iu, ""))
-    .find((line) => /^[a-z0-9][a-z0-9.-]*(?::\d+)?$/iu.test(line));
-}
-
-export function matchFirst(text: string, patterns: ReadonlyArray<RegExp>): string | undefined {
-  for (const pattern of patterns) {
-    const match = pattern.exec(text);
-    const value = match?.[1]?.trim();
-    if (value && value.length > 0) return value;
-  }
-  return undefined;
-}
-
 function isCliRemoteRefinementSpec(
   spec: SourceControlProviderDiscoverySpec,
 ): spec is SourceControlCliRemoteRefinementSpec {

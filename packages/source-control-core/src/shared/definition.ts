@@ -493,7 +493,7 @@ export function isChangeRequestInProjectRepository(
 const SCP_REMOTE = /^[a-zA-Z0-9._-]+@([^:/]+):/;
 
 /** Null when the remote names no host, such as a local path. */
-export function parseGitRemoteHost(remoteUrl: string): GitRemoteHost | null {
+function parseGitRemoteHost(remoteUrl: string): GitRemoteHost | null {
   const trimmed = remoteUrl.trim();
   if (trimmed.length === 0) return null;
   let host: string;
@@ -519,7 +519,7 @@ export function parseGitRemoteHost(remoteUrl: string): GitRemoteHost | null {
 }
 
 /** What a remote on a host no definition claims reads as. */
-export function unknownRemoteProvider(remote: GitRemoteHost): SourceControlProviderInfo {
+function unknownRemoteProvider(remote: GitRemoteHost): SourceControlProviderInfo {
   return {
     kind: SourceControlProviderKind.make("unknown"),
     name: remote.host,

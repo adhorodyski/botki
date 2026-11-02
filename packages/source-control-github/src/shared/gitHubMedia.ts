@@ -8,11 +8,6 @@ import type { SourceControlMediaUrl } from "@t3tools/source-control-core/shared/
 const WEB_HOSTS = new Set(["github.com", "www.github.com"]);
 const RAW_HOST = "raw.githubusercontent.com";
 const LFS_HOST = "media.githubusercontent.com";
-export const GITHUB_CREDENTIALED_MEDIA_HOSTS: ReadonlySet<string> = new Set([
-  ...WEB_HOSTS,
-  RAW_HOST,
-  LFS_HOST,
-]);
 
 const ATTACHMENT_PATH_PATTERN = /^\/user-attachments\/assets\/[\w-]+$/u;
 const LEGACY_ATTACHMENT_PATH_PATTERN = /^\/[^/]+\/[^/]+\/assets\/\d+\/[\w-]+$/u;
