@@ -76,7 +76,7 @@ New code matches the idioms around it, per surface:
 ## Night runs
 
 - One issue is one PR, and a PR per task. Do not batch slices.
-- Commit prefix: `night(<slice>): ...`, e.g. `night(TS1b): add the Add bot spec`.
+- Commit prefix: `night(<slice>): ...`, e.g. `night(meta): add a spec`.
 - **Never force-push.** A night agent pushes commits and never rewrites shared history.
 - Every PR body ends with a run-report: **what you ran** (exact commands), **what passed** (counts, not vibes), **what you did not touch** (the files you deliberately left alone).
 - A feature we add over t3code ships or updates its `specs/` file in the same PR; cut PRs, bugfixes, and infra touch nothing there.
