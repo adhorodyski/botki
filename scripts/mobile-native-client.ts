@@ -893,7 +893,6 @@ const reportTelemetry = Effect.fn("nativeClient.reportTelemetry")(
       Effect.orElseSucceed(() => ""),
     );
     const host =
-      environment.T3_TASK_CACHE_HOST ||
       machine ||
       (environment.GITHUB_ACTIONS === "true"
         ? `${environment.RUNNER_ENVIRONMENT || "github"}/${environment.RUNNER_OS}/${environment.RUNNER_ARCH}`
