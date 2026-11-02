@@ -65,7 +65,6 @@ import {
   makeClaudeQueryOptions,
 } from "../../apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts";
 import { proxyConfig } from "../shared/proxy.ts";
-import { changeRequestsCreatedBy } from "../../apps/server/src/orchestration-v2/PullRequestSyncReactor.ts";
 import { DeviceExpect, gradeDevice } from "./device-grading.ts";
 import {
   AGENT_DEVICE_SHELL,
@@ -725,11 +724,6 @@ const codexMessages = (messages: ReadonlyArray<ApiMessage>): Array<Block> =>
   );
 /** One tool call the shell simulator has answered, or one from the case's prior turns. */
 type ShellEntry = { readonly tool: string; readonly input: unknown; readonly output: string };
-/** PRs T3 links by itself because a shell command created them, as `gh pr create` does. */
-const createdPullRequests = ({ tool, input, output }: ShellEntry) =>
-  tool === "Bash" && isRecord(input) && typeof input.command === "string"
-    ? changeRequestsCreatedBy(input.command, output).map(({ url }) => url)
-    : [];
 /**
  * One sample's state. ToolSearch adds loaded schemas to `tools`, like Claude Code. `shell` is the
  * history the simulator keeps consistent with; `linked` and `nextTask` do the same for T3 results.
@@ -785,7 +779,7 @@ export const makeSample = (testCase: McpToolUseCase, base: Base): Sample => {
     repo: testCase.setup.world?.repo ?? "acme/app",
     shell,
     shellUsage: emptyUsage(),
-    linked: new Set([...urls, ...shell.flatMap(createdPullRequests)]),
+    linked: new Set(urls),
     codeStore: {},
     nextTask: Math.max(0, ...taskNumbers) + 1,
     priorResults: new Map(),
@@ -1338,9 +1332,7 @@ const simulate = Effect.fn("evaluateMcpToolUse.simulate")(function* (
     output = shellOutput(response.content);
   }
   if (call.tool === "Bash" && output === "") output = "(Bash completed with no output)";
-  const entry = { ...call, output };
-  sample.shell.push(entry);
-  for (const url of createdPullRequests(entry)) sample.linked.add(url);
+  sample.shell.push({ ...call, output });
   return output;
 });
 

@@ -244,7 +244,6 @@ import * as PullRequestReviewGuideService from "./pullRequest/PullRequestReviewG
 import { listLinkedPullRequestThreads } from "./pullRequest/linkedThreads.ts";
 import { pullRequestSyncKey } from "./pullRequest/pullRequestSyncKey.ts";
 import * as SqlClient from "effect/sql/SqlClient";
-import * as PullRequestSyncReactor from "./orchestration-v2/PullRequestSyncReactor.ts";
 import * as SourceControlDiscovery from "./sourceControl/SourceControlDiscovery.ts";
 import * as OtlpEndpointCheck from "./observability/OtlpEndpointCheck.ts";
 import * as SourceControlRepositoryService from "./sourceControl/SourceControlRepositoryService.ts";
@@ -1311,7 +1310,6 @@ export const layerWsRpc = (
       const secretRequests = yield* SecretRequests.SecretRequests;
       const pullRequests = yield* PullRequestService.PullRequestService;
       const reviewGuides = yield* PullRequestReviewGuideService.PullRequestReviewGuideService;
-      const pullRequestSync = yield* PullRequestSyncReactor.PullRequestSyncReactor;
       const deviceService = yield* DeviceService.DeviceService;
       const deviceHostContext =
         yield* Effect.context<Effect.Services<ReturnType<typeof remoteSshDeviceHosts>>>();
@@ -2634,15 +2632,7 @@ export const layerWsRpc = (
         [WS_METHODS.pullRequestsSetFilesViewed]: (input) =>
           withPullRequestViewer(input, pullRequests.setFilesViewed(input)),
         [WS_METHODS.pullRequestsRunAction]: (input) =>
-          withPullRequestViewer(input, pullRequests.runAction(input)).pipe(
-            Effect.tap(() =>
-              resolvePullRequestSyncKey(input).pipe(
-                Effect.flatMap((key) =>
-                  key === null ? Effect.void : pullRequestSync.requestSync(key),
-                ),
-              ),
-            ),
-          ),
+          withPullRequestViewer(input, pullRequests.runAction(input)),
         [WS_METHODS.pullRequestsUpdate]: (input) =>
           withPullRequestViewer(input, pullRequests.update(input)),
         [WS_METHODS.pullRequestsComment]: (input) =>
@@ -2659,19 +2649,7 @@ export const layerWsRpc = (
           withPullRequestViewer(input, pullRequests.setReaction(input)),
         [WS_METHODS.pullRequestsReportState]: (input) => pullRequests.reportState(input),
         [WS_METHODS.pullRequestsInvalidate]: (input) =>
-          pullRequests
-            .invalidate(input, { notifyReaders: true })
-            .pipe(
-              Effect.andThen(
-                input.reference === undefined || input.filesViewedOnly === true
-                  ? Effect.void
-                  : resolvePullRequestSyncKey(input.reference).pipe(
-                      Effect.flatMap((key) =>
-                        key === null ? Effect.void : pullRequestSync.requestSync(key),
-                      ),
-                    ),
-              ),
-            ),
+          pullRequests.invalidate(input, { notifyReaders: true }),
         [WS_METHODS.pullRequestsSubscribeRefreshes]: () => pullRequests.subscribeRefreshes,
         [WS_METHODS.pullRequestsReviewerCandidates]: (input) =>
           withPullRequestViewer(input, pullRequests.reviewerCandidates(input)),
