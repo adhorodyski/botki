@@ -855,7 +855,7 @@ it.layer(layerTest)("ThreadSearch.searchOlderSettled", (it) => {
     }),
   );
 
-  it.effect("matches the branch and linked pull requests, like the palette", () =>
+  it.effect("ignores pull requests saved on older threads", () =>
     Effect.gen(function* () {
       const projections = yield* ProjectionStore.ProjectionStoreV2;
       const search = yield* ThreadSearch.ThreadSearch;
@@ -891,8 +891,15 @@ it.layer(layerTest)("ThreadSearch.searchOlderSettled", (it) => {
           before: DateTime.formatIso(at(30)),
           messageThreadIds: [],
         });
-      assert.deepEqual(yield* find("#4101"), [branch]);
-      assert.deepEqual(yield* find("acme/heron#4202"), [linked]);
+      // The durable links stay readable in history, but nothing matches on them.
+      yield* find("#4101");
+      yield* find("acme/heron#4202");
+      assert.deepEqual(yield* find("#4101"), []);
+      assert.deepEqual(yield* find("acme/heron#4202"), []);
+      assert.deepEqual(yield* find("Heron").pipe(Effect.map((ids) => [...ids].sort())), [
+        branch,
+        linked,
+      ]);
     }),
   );
 });
