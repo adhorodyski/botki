@@ -4,7 +4,7 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeOS from "node:os";
 import * as NodeURL from "node:url";
-import { resolveWorktreeT3Home } from "@t3tools/shared/devHome";
+import { resolveCheckoutT3Home } from "@t3tools/shared/devHome";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -20,12 +20,12 @@ import { rebuildMessageSearch } from "../src/orchestration-v2/messageSearchIndex
 import { migrationManifest, runMigrations } from "../src/persistence/Migrations.ts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 
-export class MigrateDevDbNotInWorktreeError extends Schema.TaggedError<MigrateDevDbNotInWorktreeError>()(
-  "MigrateDevDbNotInWorktreeError",
+export class MigrateDevDbNotInCheckoutError extends Schema.TaggedError<MigrateDevDbNotInCheckoutError>()(
+  "MigrateDevDbNotInCheckoutError",
   {},
 ) {
   override get message(): string {
-    return "Not inside a linked git worktree. Pass --base-dir to target an isolated .t3 directory.";
+    return "Not inside a git checkout. Pass --base-dir to target an isolated .t3 directory.";
   }
 }
 
@@ -448,9 +448,9 @@ export const runMigrateDevDb = Effect.fn("runMigrateDevDb")(function* (
   const baseDir =
     input.baseDir !== undefined
       ? path.resolve(input.baseDir)
-      : yield* resolveWorktreeT3Home(process.cwd());
+      : yield* resolveCheckoutT3Home(process.cwd());
   if (baseDir === undefined) {
-    return yield* new MigrateDevDbNotInWorktreeError();
+    return yield* new MigrateDevDbNotInCheckoutError();
   }
   const stateDir = path.join(baseDir, "userdata");
   const databasePath = path.join(stateDir, "statev2.sqlite");
@@ -587,7 +587,7 @@ export const migrateDevDbCommand = Command.make(
     ),
     baseDir: Flag.String("base-dir").pipe(
       Flag.optional,
-      Flag.withDescription("Isolated .t3 directory. Defaults to the current worktree's .t3."),
+      Flag.withDescription("Isolated .t3 directory. Defaults to this checkout's .t3."),
     ),
     source: Flag.String("source").pipe(
       Flag.optional,
