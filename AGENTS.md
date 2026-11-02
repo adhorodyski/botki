@@ -88,7 +88,7 @@ New code matches the idioms around it, per surface:
 
 - `vp i` installs. A worktree gets this from the t3.json setup script; if module resolution looks broken, it probably did not run.
 - Setup runs in the background. While `.t3/setup-running` names a live PID, wait for it and do not run `vp i`. It ends with `.t3/setup-done` or `.t3/setup-failed` (with the error tail). With no marker at all, setup never ran here, so run `vp i` yourself.
-- `vp run dev` starts server and web. State defaults to that worktree's gitignored `.t3`, which deliberately outranks an ambient `T3CODE_HOME` so you cannot land on shared state by accident. An explicit `--home-dir` still wins.
+- `vp run dev` starts server and web. State defaults to that checkout's gitignored `.t3` (worktree or plain clone), and a worktree's deliberately outranks an ambient `T3CODE_HOME` so you cannot land on shared state by accident. An explicit `--home-dir` still wins.
 - Ports derive from the worktree path and are stable across restarts, but read the real ones from the `[dev-runner]` line since occupied ports shift. Loopback is the normal path; `--share` is for a second machine and prints a `pairingUrl:` you hand over whole.
 - Stop what you started, by the PID you tracked. See rule 1 below.
 - Need a second checkout? `git worktree add` it next to this worktree, not in `/tmp`. Remove it when done.

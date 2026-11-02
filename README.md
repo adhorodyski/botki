@@ -32,18 +32,15 @@ Then, in a fresh clone:
 git clone https://github.com/adhorodyski/botki
 cd botki
 vp i                                  # install dependencies
-vp run dev --home-dir ./.t3           # server + web app, state in this checkout
+vp run dev                            # server + web app, state in this checkout
 ```
 
 If you would rather not install `vp` globally, enable the pinned `pnpm` with `corepack
 enable` and run the same steps through it. `pnpm dev:desktop` below is exactly that form.
 
-**Point `--home-dir` at the checkout.** A plain clone is not a linked `git worktree`, and only
-a linked worktree gets its own `.t3` by default; in a bare clone, bare `vp run dev` resolves
-state to `~/.t3`, which is wherever your real install keeps its database. Passing `--home-dir`
-makes the sandbox explicit and cannot land you on shared state by accident. If you work in a
-linked worktree (`git worktree add`), omit it and the dev runner picks that worktree's `.t3`
-for you.
+**Every checkout keeps its own state.** `vp run dev` stores state in that checkout's `.t3`
+— a linked worktree or a plain clone alike — and prints the path it chose, so a dev run never
+touches the database your real install uses. Pass `--home-dir` to choose somewhere else.
 
 `vp run dev` prints a `pairingUrl:` — open that in a browser rather than the bare origin,
 which will not authenticate a new browser.
@@ -51,11 +48,11 @@ which will not authenticate a new browser.
 Prefer the desktop app? It runs against the same local server:
 
 ```sh
-pnpm dev:desktop --home-dir ./.t3
+pnpm dev:desktop
 ```
 
 Bring some real data into the sandbox before you test anything that an empty database
-makes uninteresting — `vp run migrate-dev-db` rebuilds your worktree's database from a
+makes uninteresting — `vp run migrate-dev-db` rebuilds your checkout's database from a
 read-only copy of an existing install. See
 [AGENTS.md](./AGENTS.md#test-data) for what that keeps and what it deliberately drops.
 

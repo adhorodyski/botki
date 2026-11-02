@@ -37,9 +37,9 @@ SSH-managed launch persistence stay unchanged either way.
 Completed spans are written as NDJSON records to `serverTracePath`. The default depends on how the
 server starts: production and explicitly configured homes use
 `<home>/userdata/logs/server.trace.ndjson` (so `~/.t3/userdata/...` by default, or
-`/custom/path/userdata/...` with `--home-dir /custom/path`), a linked worktree dev run uses
-`<worktree>/.t3/userdata/logs/server.trace.ndjson`, and an implicit dev run outside a linked
-worktree uses `~/.t3/dev/logs/server.trace.ndjson`.
+`/custom/path/userdata/...` with `--home-dir /custom/path`), a dev run inside a checkout uses
+`<checkout>/.t3/userdata/logs/server.trace.ndjson` (linked worktree or plain clone alike), and
+an implicit dev run outside any checkout uses `~/.t3/dev/logs/server.trace.ndjson`.
 
 Important fields common to both record types:
 
@@ -263,13 +263,14 @@ state under the base directory's `userdata` folder:
 TRACE_FILE="${T3CODE_HOME:-$HOME/.t3}/userdata/logs/server.trace.ndjson"
 ```
 
-A dev server started from a linked worktree defaults to that worktree's local home:
+A dev server started inside a checkout defaults to that checkout's local home (worktree or
+plain clone):
 
 ```bash
 TRACE_FILE="$WORKTREE/.t3/userdata/logs/server.trace.ndjson"
 ```
 
-Only an implicit dev run outside a linked worktree uses the shared dev directory:
+Only an implicit dev run outside any checkout uses the shared dev directory:
 
 ```bash
 TRACE_FILE="$HOME/.t3/dev/logs/server.trace.ndjson"

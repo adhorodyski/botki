@@ -59,9 +59,10 @@ Add `--browser` to open a browser automatically.
 
 ### State and ports
 
-Linked worktrees default to their own `.t3/userdata`, even when `T3CODE_HOME` is set.
-The main checkout defaults to `~/.t3/dev`. An explicit `--home-dir` wins in both cases.
-The first start in a worktree seeds its empty database from a read-only copy of
+Every checkout defaults to its own `.t3/userdata` — a linked worktree even when `T3CODE_HOME`
+is set, a plain clone when nothing else selected a home. An explicit `--home-dir` wins, and so
+does `T3CODE_HOME` outside a worktree. The dev runner prints the state directory it chose.
+The first start in a checkout seeds its empty database from a read-only copy of
 `~/.t3/userdata/statev2.sqlite` if the source is at most 500 MiB. Larger sources warn
 and dev starts with an empty database. `--no-seed` or `T3CODE_DEV_SEED=0` skips seeding.
 To copy a larger source, run `vp run migrate-dev-db` with dev stopped. It may use
