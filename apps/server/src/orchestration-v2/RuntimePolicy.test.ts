@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import {
+  BotId,
   type ModelSelection,
   type OrchestrationV2AppThread,
   ProjectId,
@@ -74,46 +75,57 @@ const providerInstanceFor = (instanceId: ProviderInstanceId) =>
     },
   }) as ProviderInstance;
 
-// Plain threads only here, so staging is stubbed; BotInstructions.test.ts covers the file.
-const layerBotInstructions = Layer.mock(BotInstructions.BotInstructions)({
-  stageForTurn: () => Effect.succeed(null),
-});
-
-const layerTest = RuntimePolicy.layerFromProjectStore.pipe(
-  Layer.provide(layerBotInstructions),
-  Layer.provide(
-    Layer.succeed(ProviderInstanceRegistry.ProviderInstanceRegistry, {
-      getInstance: (instanceId) => Effect.succeed(providerInstanceFor(instanceId)),
-      listInstances: Effect.succeed([]),
-      listUnavailable: Effect.succeed([]),
-      streamChanges: Stream.empty,
-      subscribeChanges: Effect.never,
-    }),
-  ),
-  Layer.provide(
-    Layer.mock(ProjectStore.ProjectStoreV2)({
-      get: () =>
-        Effect.succeedSome({
-          projectId,
-          title: "Project",
-          workspaceRoot: "/project-root",
-          defaultModelSelection: null,
-          defaultThreadEnvMode: null,
-          autoPull: false,
-          faviconPath: null,
-          projectIcon: null,
-          scripts: [],
-          pinnedAt: null,
-          archivedAt: null,
-          createdAt: "2026-06-21T00:00:00.000Z",
-          updatedAt: "2026-06-21T00:00:00.000Z",
-          deletedAt: null,
-        }),
-    }),
-  ),
+// The provider-registry and project-store fakes are fixed; only the instructions stub varies
+// per test, because the policy captures whatever staging service it was built with.
+const layerHosts = Layer.mergeAll(
+  Layer.succeed(ProviderInstanceRegistry.ProviderInstanceRegistry, {
+    getInstance: (instanceId) => Effect.succeed(providerInstanceFor(instanceId)),
+    listInstances: Effect.succeed([]),
+    listUnavailable: Effect.succeed([]),
+    streamChanges: Stream.empty,
+    subscribeChanges: Effect.never,
+  }),
+  Layer.mock(ProjectStore.ProjectStoreV2)({
+    get: () =>
+      Effect.succeedSome({
+        projectId,
+        title: "Project",
+        workspaceRoot: "/project-root",
+        defaultModelSelection: null,
+        defaultThreadEnvMode: null,
+        autoPull: false,
+        faviconPath: null,
+        projectIcon: null,
+        scripts: [],
+        pinnedAt: null,
+        archivedAt: null,
+        createdAt: "2026-06-21T00:00:00.000Z",
+        updatedAt: "2026-06-21T00:00:00.000Z",
+        deletedAt: null,
+      }),
+  }),
 );
 
-it.layer(layerTest)("RuntimePolicyV2", (it) => {
+const layerTest = (botInstructions: Layer.Layer<BotInstructions.BotInstructions>) =>
+  RuntimePolicy.layerFromProjectStore.pipe(
+    Layer.provide(layerHosts),
+    Layer.provide(botInstructions),
+  );
+
+const layerPlainThreads = Layer.mock(BotInstructions.BotInstructions)({
+  stageForTurn: () => Effect.succeed(null),
+});
+/** Records what staging was asked for, so a test can see the null path is really the null path. */
+const layerRecordingStaging = (staged: Array<BotId | null | undefined>) =>
+  Layer.mock(BotInstructions.BotInstructions)({
+    stageForTurn: (botId) =>
+      Effect.sync(() => staged.push(botId)).pipe(
+        // Mirrors the real service: no bot means no file, whether the field is null or absent.
+        Effect.as(botId === null || botId === undefined ? null : "/state/b.md"),
+      ),
+  });
+
+it.layer(layerTest(layerPlainThreads))("RuntimePolicyV2", (it) => {
   it.effect("runs a mode the provider does not offer in Supervised", () =>
     Effect.gen(function* () {
       const policy = yield* RuntimePolicy.RuntimePolicyV2;
@@ -133,3 +145,39 @@ it.layer(layerTest)("RuntimePolicyV2", (it) => {
     }),
   );
 });
+
+// A plain thread must ask for no instructions at all — that absence is what keeps its prompt
+// byte-identical to a build with no bots — and a bot thread's staged path must reach the policy.
+const stagedByThread: Array<BotId | null | undefined> = [];
+
+it.layer(layerTest(layerRecordingStaging(stagedByThread)))(
+  "RuntimePolicyV2 bot instructions",
+  (it) => {
+    it.effect("carries no instructions for a thread with no bot", () =>
+      Effect.gen(function* () {
+        stagedByThread.length = 0;
+        const policy = yield* (yield* RuntimePolicy.RuntimePolicyV2).resolve({
+          thread: makeThread({ now: yield* DateTime.now, worktreePath: null }),
+          modelSelection,
+        });
+        assert.deepEqual(stagedByThread, [undefined]);
+        assert.isUndefined(policy.botInstructionsPath);
+      }),
+    );
+
+    it.effect("stages a bot thread's instructions into the policy", () =>
+      Effect.gen(function* () {
+        stagedByThread.length = 0;
+        const policy = yield* (yield* RuntimePolicy.RuntimePolicyV2).resolve({
+          thread: {
+            ...makeThread({ now: yield* DateTime.now, worktreePath: null }),
+            botId: BotId.make("viki"),
+          },
+          modelSelection,
+        });
+        assert.deepEqual(stagedByThread, [BotId.make("viki")]);
+        assert.equal(policy.botInstructionsPath, "/state/b.md");
+      }),
+    );
+  },
+);
