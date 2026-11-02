@@ -1,8 +1,7 @@
-/** Worktrees use isolated .t3 state; ambient T3CODE_HOME could otherwise select the live userdata database. */
+/** Checksouts use isolated .t3 state; ambient T3CODE_HOME could otherwise select the live userdata database. */
 
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
-import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 
 // Match worktrees/<name>; bare repos and GIT_COMMON_DIR need not use a directory named .git.
@@ -23,7 +22,7 @@ const pointsAtLinkedWorktree = (gitFileContents: string, path: Path.Path): boole
   return segments.length >= 3 && segments.at(-2) === "worktrees";
 };
 
-export const resolveGitWorktreePath = Effect.fn("devHome.resolveGitWorktreePath")(function* (
+const findGitMarkerDirectory = Effect.fn("devHome.findGitMarkerDirectory")(function* (
   cwd: string,
 ): Effect.fn.Return<string | undefined, never, FileSystem.FileSystem | Path.Path> {
   const fileSystem = yield* FileSystem.FileSystem;
@@ -31,16 +30,11 @@ export const resolveGitWorktreePath = Effect.fn("devHome.resolveGitWorktreePath"
 
   let directory = path.resolve(cwd);
   for (;;) {
-    const gitPath = path.join(directory, ".git");
-    const info = yield* fileSystem.stat(gitPath).pipe(Effect.option);
-    if (Option.isSome(info)) {
-      if (info.value.type !== "File") {
-        return undefined;
-      }
-      const contents = yield* fileSystem
-        .readFileString(gitPath)
-        .pipe(Effect.orElseSucceed(() => ""));
-      return pointsAtLinkedWorktree(contents, path) ? directory : undefined;
+    const hasGitMarker = yield* fileSystem
+      .exists(path.join(directory, ".git"))
+      .pipe(Effect.orElseSucceed(() => false));
+    if (hasGitMarker) {
+      return directory;
     }
     const parent = path.dirname(directory);
     if (parent === directory) {
@@ -50,10 +44,24 @@ export const resolveGitWorktreePath = Effect.fn("devHome.resolveGitWorktreePath"
   }
 });
 
-/**
- * Deliberately does not require the directory to exist yet: falling back
- * because it is missing would send callers at the shared home.
- */
+export const resolveGitWorktreePath = Effect.fn("devHome.resolveGitWorktreePath")(function* (
+  cwd: string,
+): Effect.fn.Return<string | undefined, never, FileSystem.FileSystem | Path.Path> {
+  const directory = yield* findGitMarkerDirectory(cwd);
+  if (directory === undefined) {
+    return undefined;
+  }
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  // A `.git` directory is a plain checkout or bare repo, never a linked worktree.
+  const contents = yield* fileSystem
+    .readFileString(path.join(directory, ".git"))
+    .pipe(Effect.orElseSucceed(() => ""));
+  return pointsAtLinkedWorktree(contents, path) ? directory : undefined;
+});
+
+/** Neither resolver requires `.t3` to exist yet: falling back because it is
+ * missing would send callers at the shared home. */
 export const resolveWorktreeT3Home = Effect.fn("devHome.resolveWorktreeT3Home")(function* (
   cwd: string,
 ): Effect.fn.Return<string | undefined, never, FileSystem.FileSystem | Path.Path> {
@@ -63,4 +71,20 @@ export const resolveWorktreeT3Home = Effect.fn("devHome.resolveWorktreeT3Home")(
   }
   const path = yield* Path.Path;
   return path.join(worktreePath, ".t3");
+});
+
+/**
+ * Any checkout's own `.t3`, linked worktree or plain clone. A clone is not a
+ * linked worktree, so `resolveWorktreeT3Home` answers undefined there and a
+ * dev run would land on the shared home — the developer's real database.
+ */
+export const resolveCheckoutT3Home = Effect.fn("devHome.resolveCheckoutT3Home")(function* (
+  cwd: string,
+): Effect.fn.Return<string | undefined, never, FileSystem.FileSystem | Path.Path> {
+  const root = yield* findGitMarkerDirectory(cwd);
+  if (root === undefined) {
+    return undefined;
+  }
+  const path = yield* Path.Path;
+  return path.join(root, ".t3");
 });

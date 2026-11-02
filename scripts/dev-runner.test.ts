@@ -641,17 +641,23 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
     });
 
     describe("t3 home precedence", () => {
-      const makeWorktree = Effect.acquireRelease(
-        Effect.sync(() => {
-          const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-devrunner-"));
-          NodeFS.writeFileSync(
-            NodePath.join(root, ".git"),
-            "gitdir: /elsewhere/.git/worktrees/x\n",
-          );
-          return root;
-        }),
-        (root) => Effect.sync(() => NodeFS.rmSync(root, { recursive: true, force: true })),
-      );
+      const makeCheckout = (kind: "worktree" | "clone") =>
+        Effect.acquireRelease(
+          Effect.sync(() => {
+            const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-devrunner-"));
+            if (kind === "worktree") {
+              NodeFS.writeFileSync(
+                NodePath.join(root, ".git"),
+                "gitdir: /elsewhere/.git/worktrees/x\n",
+              );
+            } else {
+              NodeFS.mkdirSync(NodePath.join(root, ".git"));
+            }
+            return root;
+          }),
+          (root) => Effect.sync(() => NodeFS.rmSync(root, { recursive: true, force: true })),
+        );
+      const makeWorktree = makeCheckout("worktree");
 
       const spawnedHome = (input: {
         readonly t3Home: string | undefined;
@@ -686,6 +692,116 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
 
           return captured?.T3CODE_HOME;
         });
+
+      it.effect("defaults a plain clone to its own .t3 rather than the shared home", () =>
+        Effect.gen(function* () {
+          const path = yield* Path.Path;
+          const root = yield* makeCheckout("clone");
+          const home = yield* spawnedHome({
+            t3Home: undefined,
+            cwd: NodePath.join(root, "apps", "server"),
+            ambientHome: undefined,
+          });
+          assert.equal(home, path.join(path.resolve(root), ".t3"));
+        }).pipe(Effect.scoped),
+      );
+
+      it.effect("keeps an explicit --home-dir winning inside a plain clone", () =>
+        Effect.gen(function* () {
+          const path = yield* Path.Path;
+          const root = yield* makeCheckout("clone");
+          const home = yield* spawnedHome({
+            t3Home: "/tmp/explicit-clone-home",
+            cwd: root,
+            ambientHome: undefined,
+          });
+          assert.equal(home, path.resolve("/tmp/explicit-clone-home"));
+        }).pipe(Effect.scoped),
+      );
+
+      it.effect("keeps an ambient T3CODE_HOME winning over the clone default", () =>
+        Effect.gen(function* () {
+          const path = yield* Path.Path;
+          const root = yield* makeCheckout("clone");
+          const home = yield* spawnedHome({
+            t3Home: undefined,
+            cwd: root,
+            ambientHome: "/home/user/.t3",
+          });
+          assert.equal(home, path.resolve("/home/user/.t3"));
+        }).pipe(Effect.scoped),
+      );
+
+      it.effect("says which checkout state dir it chose for a plain clone", () =>
+        Effect.gen(function* () {
+          const path = yield* Path.Path;
+          const root = yield* makeCheckout("clone");
+          const infos: Array<string> = [];
+          const spawnerLayer = Layer.succeed(
+            ChildProcessSpawner.ChildProcessSpawner,
+            ChildProcessSpawner.make(() => Effect.succeed(mockProcess(0))),
+          );
+
+          yield* runDevRunnerWithInput({ ...devServerInput, t3Home: undefined }).pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                emptyConfigLayer,
+                netServiceLayer,
+                spawnerLayer,
+                Logger.layer([
+                  Logger.make((options) => {
+                    if (options.logLevel === "Info") infos.push(String(options.message));
+                  }),
+                ]),
+              ),
+            ),
+            Effect.provideService(HostProcess.Platform, "linux"),
+            Effect.provideService(HostProcess.WorkingDirectory, root),
+            Effect.provideService(HostProcess.HomeDirectory, root),
+            Effect.provideService(HostProcess.Environment, {}),
+          );
+
+          assert.include(
+            infos.join("\n"),
+            `using this checkout's state at ${path.join(path.resolve(root), ".t3")}`,
+          );
+        }).pipe(Effect.scoped),
+      );
+
+      it.effect("seeds a plain clone's empty database the way it seeds a worktree's", () =>
+        Effect.gen(function* () {
+          const path = yield* Path.Path;
+          const root = yield* makeCheckout("clone");
+          const home = path.join(root, "home");
+          NodeFS.mkdirSync(path.join(home, ".t3", "userdata"), { recursive: true });
+          NodeFS.writeFileSync(path.join(home, ".t3", "userdata", "statev2.sqlite"), "");
+
+          const spawned: Array<ReadonlyArray<string>> = [];
+          const spawnerLayer = Layer.succeed(
+            ChildProcessSpawner.ChildProcessSpawner,
+            ChildProcessSpawner.make((command) => {
+              spawned.push((command as unknown as { readonly args: ReadonlyArray<string> }).args);
+              return Effect.succeed(mockProcess(0));
+            }),
+          );
+
+          yield* runDevRunnerWithInput({ ...devServerInput, t3Home: undefined }).pipe(
+            Effect.provide(Layer.mergeAll(emptyConfigLayer, netServiceLayer, spawnerLayer)),
+            Effect.provideService(HostProcess.Platform, "linux"),
+            Effect.provideService(HostProcess.WorkingDirectory, root),
+            Effect.provideService(HostProcess.HomeDirectory, home),
+            Effect.provideService(HostProcess.Environment, {}),
+          );
+
+          assert.includeMembers(
+            [
+              ...(spawned.find((args) => args.some((arg) => arg.endsWith("migrate-dev-db.ts"))) ??
+                []),
+            ],
+            ["--base-dir", path.join(root, ".t3")],
+          );
+        }).pipe(Effect.scoped),
+      );
 
       it.effect("prefers an explicit --home-dir over the worktree default", () =>
         Effect.gen(function* () {

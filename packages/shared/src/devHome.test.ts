@@ -6,7 +6,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as Effect from "effect/Effect";
 
-import { resolveGitWorktreePath, resolveWorktreeT3Home } from "./devHome.ts";
+import { resolveCheckoutT3Home, resolveGitWorktreePath, resolveWorktreeT3Home } from "./devHome.ts";
 
 const makeRepo = (
   kind:
@@ -79,5 +79,42 @@ describe("resolveWorktreeT3Home", () => {
       assert.equal(home, NodePath.join(NodePath.resolve(root), ".t3"));
       assert.isFalse(NodeFS.existsSync(home ?? ""));
     }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
+
+  it.effect("declines a plain clone, which is why the checkout resolver exists", () =>
+    Effect.gen(function* () {
+      const { nested } = yield* makeRepo("checkout");
+      assert.equal(yield* resolveWorktreeT3Home(nested), undefined);
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
+});
+
+describe("resolveCheckoutT3Home", () => {
+  it.effect("finds a plain clone's own .t3 from a nested directory", () =>
+    Effect.gen(function* () {
+      const { root, nested } = yield* makeRepo("checkout");
+      assert.equal(
+        yield* resolveCheckoutT3Home(nested),
+        NodePath.join(NodePath.resolve(root), ".t3"),
+      );
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
+
+  it.effect("answers the same directory for a linked worktree", () =>
+    Effect.gen(function* () {
+      const { nested } = yield* makeRepo("worktree");
+      assert.equal(yield* resolveCheckoutT3Home(nested), yield* resolveWorktreeT3Home(nested));
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  );
+
+  it.effect("answers nothing outside a repository, so callers keep their own fallback", () =>
+    Effect.gen(function* () {
+      const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-devhome-plain-"));
+      try {
+        assert.equal(yield* resolveCheckoutT3Home(root), undefined);
+      } finally {
+        NodeFS.rmSync(root, { recursive: true, force: true });
+      }
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
