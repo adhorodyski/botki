@@ -29,18 +29,20 @@ changes are needed for the same fix. Split independent fixes. -->
 - Patterns followed: <!-- server Context.Service + Layer, contracts Schema, web variant/size + design tokens, naming, colocated tests -->
 - Files added or renamed: <!-- every one -->
 
-## ACCEPT
+## Requirements status
 
-<!-- Path to this slice's file: ACCEPT/<issue-number>-<slug>.md. One PR = exactly one
-ACCEPT file, or one line here saying why not. -->
+<!-- Copy the issue's acceptance checklist here verbatim. Mark every item done, with the
+command or capture that settles it, or not run, with the reason. Nothing from the issue
+gets left unmarked. The owner reads this section and merges. Captures are uploaded to
+GitHub in this PR, never committed. If the feature is ours over t3code, its specs/ file
+is updated in this same PR; everything else touches nothing there. -->
 
 ## Verification
 
 <!-- The focused tests or manual checks you ran and the observed results for the changed
 behavior. State anything you could not check. "Tests pass" alone is insufficient; do not
-run repo-wide checks. For visible changes, include before/after captures in
-ACCEPT/captures/<issue>/ or uploaded to GitHub, and a short recording for motion or timing.
-Replay scenario used, if any. -->
+run repo-wide checks. For visible changes, include before/after captures uploaded to
+GitHub, and a short recording for motion or timing. Replay scenario used, if any. -->
 
 ## Run report
 

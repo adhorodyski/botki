@@ -1,6 +1,6 @@
 ---
 name: test-botki-app
-description: Test Botki's web and desktop UI through its built-in Browser panel against isolated development state, and save the captures an ACCEPT needs. Use for browser verification, browser pairing recovery, test fixtures, and Replay runs on the Pi path.
+description: Test Botki's web and desktop UI through its built-in Browser panel against isolated development state, and save the captures a PR's Requirements status needs. Use for browser verification, browser pairing recovery, test fixtures, and Replay runs on the Pi path.
 ---
 
 # Test Botki web and desktop
@@ -37,7 +37,7 @@ fixture such as `pi_chat_demo` is not in the picker and asking for it throws
 
 Pi is the reference provider. Its chat demo is the `pi_chat_demo` fixture: two
 turns where the second repeats a marker only the first established, which is
-what an ACCEPT uses to prove history survives. Verify it headless with
+what the replay fixture test uses to prove history survives. Verify it headless with
 `vp test run apps/server/src/orchestration-v2/testkit/PiReplayFixtures.integration.test.ts -t pi_chat_demo`
 rather than through the panel. Use a live Pi turn only when the change depends
 on real provider behavior, and then Pi's cheapest model (Haiku 4.5 is a couple
@@ -56,13 +56,12 @@ closed. Navigate to the complete startup pairing URL once with
 If the token was consumed or expired, run `node apps/server/src/bin.ts pair`
 for a fresh one. Keep using the same tab.
 
-## Save captures for the ACCEPT
+## Save captures for the PR
 
-Reference captures for a slice live in `ACCEPT/captures/<issue>/`, named for
+Reference captures are uploaded to GitHub in the PR that needs them, named for
 what they prove, such as `pi-chat-demo-history.png`. Snapshot with `save: true`
-and copy the returned path there, or upload straight to GitHub when the ACCEPT
-is already a PR. Keep secrets, pairing tokens, and machine paths out of every
-capture.
+and upload the returned path; never commit captures. Keep secrets, pairing
+tokens, and machine paths out of every capture.
 
 ## Verify and retain
 
