@@ -124,7 +124,9 @@ it.effect("a persisted fork leaves PR watching with its parent until explicitly 
     const parentBefore = yield* orchestrator.getThreadShell(sourceThreadId);
     const parentWatch = parentBefore?.pullRequests?.[0]?.watch;
     assert.isDefined(parentWatch);
-    assert.lengthOf(parentBefore?.pendingBackgroundTasks ?? [], 1);
+    // A watch is recorded state, not awaited work: nothing is left to end it, so it must not
+    // hold the thread open.
+    assert.deepEqual(parentBefore?.pendingBackgroundTasks ?? [], []);
 
     yield* orchestrator.dispatch({
       type: "thread.fork",
@@ -183,7 +185,7 @@ it.effect("a persisted fork leaves PR watching with its parent until explicitly 
     const watchingFork = yield* orchestrator.getThreadShell(targetThreadId);
     assert.isDefined(watchingFork?.pullRequests?.[0]?.watch);
     assert.notEqual(watchingFork.pullRequests[0].watch.startedAt, parentWatch.startedAt);
-    assert.lengthOf(watchingFork.pendingBackgroundTasks ?? [], 1);
+    assert.deepEqual(watchingFork.pendingBackgroundTasks ?? [], []);
     assert.deepEqual(yield* orchestrator.getThreadShell(sourceThreadId), parentBefore);
 
     yield* orchestrator.dispatch({

@@ -15,7 +15,6 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as Statement from "effect/sql/Statement";
 
 import * as SqlitePersistence from "../../persistence/Sqlite.ts";
-import { listLinkedPullRequestThreads } from "../../pullRequest/linkedThreads.ts";
 import * as EventSink from "../EventSink.ts";
 import * as EventStore from "../EventStore.ts";
 import * as LegacyV1ThreadImporter from "./LegacyV1ThreadImporter.ts";
@@ -423,20 +422,10 @@ it.layer(layerTest)("LegacyV1ThreadImporter", (it) => {
         shellProjection.thread.unsettledAt,
         DateTime.makeUnsafe("2026-01-03T12:00:00.000Z"),
       );
-      assert.equal(shellProjection.thread.linkedPullRequest?.number, 9000);
-      assert.deepStrictEqual(
-        (shellProjection.thread.pullRequests ?? []).map((link) => link.number),
-        [9002, 9003, 9000],
-      );
-      assert.equal(shellProjection.thread.pullRequests?.[0]?.snapshot?.title, "Second PR");
-      assert.deepStrictEqual(
-        (yield* listLinkedPullRequestThreads({
-          host: "github.com",
-          repository: "pingdotgg/t3code",
-          number: 9002,
-        })).threads.map((thread) => thread.id),
-        [threadId],
-      );
+      // V1 recorded links in its own tables; the import carries none of them forward.
+      assert.isNull(shellProjection.thread.linkedPullRequest);
+      assert.deepStrictEqual(shellProjection.thread.pullRequests, []);
+      assert.isNull(shellProjection.thread.branchPullRequest);
       const shellSnapshot = yield* projections.getShellSnapshot();
       assert.equal(
         shellSnapshot.threads.find((thread) => thread.id === threadId)?.historyOrigin,
@@ -569,12 +558,9 @@ it.layer(layerTest)("LegacyV1ThreadImporter", (it) => {
         repaired.thread.unsettledAt,
         DateTime.makeUnsafe("2026-01-03T12:00:00.000Z"),
       );
-      assert.equal(repaired.thread.linkedPullRequest?.number, 9000);
-      assert.deepStrictEqual(
-        (repaired.thread.pullRequests ?? []).map((link) => link.number),
-        [9002, 9003, 9000],
-      );
-      assert.equal(repaired.thread.pullRequests?.[0]?.snapshot?.title, "Second PR");
+      // Repair fills the absent fields with empties rather than the V1 links.
+      assert.isNull(repaired.thread.linkedPullRequest);
+      assert.deepStrictEqual(repaired.thread.pullRequests, []);
       const eventCountBeforeRetry = yield* sql<{ readonly count: number }>`
         SELECT COUNT(*) AS count
         FROM orchestration_events
@@ -647,10 +633,7 @@ it.layer(layerTest)("LegacyV1ThreadImporter", (it) => {
       yield* importer.reconcileShells;
       yield* maintenance.rebuild;
       const shellProjection = yield* projections.getThreadProjection(threadId);
-      assert.deepStrictEqual(
-        (shellProjection.thread.pullRequests ?? []).map((link) => link.number),
-        [9000],
-      );
+      assert.deepStrictEqual(shellProjection.thread.pullRequests, []);
       const previousRepairThread = {
         ...shellProjection.thread,
         title: "Renamed in v2",
@@ -684,7 +667,7 @@ it.layer(layerTest)("LegacyV1ThreadImporter", (it) => {
       assert.isNull(repaired.thread.pinOrderKey);
       assert.isNull(repaired.thread.linkedPullRequest);
       assert.deepStrictEqual(repaired.thread.pullRequests, []);
-      assert.equal(repaired.thread.branchPullRequest?.number, 9001);
+      assert.isNull(repaired.thread.branchPullRequest);
       assert.equal(repaired.thread.activeOrderKey, "az");
 
       const eventsBeforeRetry = yield* sql<{ readonly event_id: string }>`

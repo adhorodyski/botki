@@ -1,14 +1,8 @@
 import { assert, it } from "@effect/vitest";
-import {
-  CheckpointScopeId,
-  RunId,
-  ThreadId,
-  type OrchestrationV2ThreadShell,
-} from "@t3tools/contracts";
+import { CheckpointScopeId, RunId, ThreadId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
-import * as PullRequestService from "../pullRequest/PullRequestService.ts";
 import * as VcsStatusBroadcaster from "../vcs/VcsStatusBroadcaster.ts";
 import * as WorkspaceEntries from "../workspace/WorkspaceEntries.ts";
 import * as CheckpointCapture from "./CheckpointCaptureService.ts";
@@ -46,7 +40,6 @@ it.effect("completes finalization when the post-checkpoint workspace refresh fai
                 cause: new Error("Git command timed out"),
               });
             }),
-          refreshAfterTurn: () => Effect.void,
         }),
       ),
     ),
@@ -58,82 +51,39 @@ it.effect("completes finalization when the post-checkpoint workspace refresh fai
   }).pipe(Effect.provide(layer));
 });
 
-it.effect.each(
-  (
-    [
-      {
-        label: "discovers a new PR for the completed run's branch",
-        branch: "feature",
-        checkedOut: "feature",
-        activeRun: null,
-        expected: ["/repo"],
-      },
-      {
-        label: "leaves the default branch's PR cache alone",
-        branch: "main",
-        checkedOut: "main",
-        activeRun: null,
-        expected: [],
-      },
-      {
-        label: "does not refresh another thread's checkout",
-        branch: "feature",
-        checkedOut: "other",
-        activeRun: null,
-        expected: [],
-      },
-      {
-        label: "does not refresh during a newer active run",
-        branch: "feature",
-        checkedOut: "feature",
-        activeRun: "newer-run",
-        expected: [],
-      },
-    ] as const
-  ).map((scenario) => [scenario.label, scenario] as const),
-)("%s", ([, scenario]) => {
+it.effect("refreshes only the workspace display for the checkpointed checkout", () => {
   const refreshed: string[] = [];
-  const threadId = ThreadId.make("thread-pr-refresh");
-  const runId = RunId.make("completed-run");
   const layer = RunFinalization.layerObserver.pipe(
     Layer.provide(
       Layer.mergeAll(
-        Layer.mock(WorkspaceEntries.WorkspaceEntries)({ refresh: () => Effect.void }),
-        Layer.mock(PullRequestService.PullRequestService)({
-          refreshAfterTurn: () => Effect.void,
+        Layer.mock(WorkspaceEntries.WorkspaceEntries)({
+          refresh: (cwd) =>
+            Effect.sync(() => {
+              refreshed.push(`workspace:${cwd}`);
+            }),
         }),
         Layer.mock(VcsStatusBroadcaster.VcsStatusBroadcaster)({
-          refreshLocalStatus: () =>
-            Effect.succeed({
-              isRepo: true,
-              hasPrimaryRemote: true,
-              isDefaultRef: scenario.checkedOut === "main",
-              refName: scenario.checkedOut,
-              hasWorkingTreeChanges: false,
-              workingTree: { files: [], insertions: 0, deletions: 0 },
-            }),
-          refreshStatus: () =>
-            Effect.die("turn completion must preserve known PRs and lookup backoff"),
-          refreshPullRequestStatus: (cwd) =>
+          refreshLocalStatus: (cwd) =>
             Effect.sync(() => {
-              refreshed.push(cwd);
-              return null;
+              refreshed.push(`local:${cwd}`);
+              return {
+                isRepo: true,
+                hasPrimaryRemote: true,
+                isDefaultRef: false,
+                refName: "feature",
+                hasWorkingTreeChanges: false,
+                workingTree: { files: [], insertions: 0, deletions: 0 },
+              };
             }),
-        }),
-        Layer.mock(ProjectionStore.ProjectionStoreV2)({
-          getThreadShell: () =>
-            Effect.succeed({
-              id: threadId,
-              branch: scenario.branch,
-              activeRunId: scenario.activeRun === null ? null : RunId.make(scenario.activeRun),
-            } as OrchestrationV2ThreadShell),
+          refreshStatus: () => Effect.die("remote status is not a checkpoint concern"),
+          refreshPullRequestStatus: () => Effect.die("no forge to refresh"),
         }),
       ),
     ),
   );
   return Effect.gen(function* () {
     const observer = yield* RunFinalization.RunFinalizationObserver;
-    yield* observer.refresh({ cwd: "/repo", threadId, runId });
-    assert.deepEqual(refreshed, [...scenario.expected]);
+    yield* observer.refresh("/repo");
+    assert.deepEqual(refreshed.sort(), ["local:/repo", "workspace:/repo"]);
   }).pipe(Effect.provide(layer));
 });

@@ -1098,6 +1098,8 @@ const backgroundThreadUpdatesKeepTimestamp = Effect.gen(function* () {
   assert.deepEqual(synced.updatedAt, createdAt);
   assert.equal(synced.thread.pullRequests?.[0]?.number, 42);
 
+  // Durable history still carries the pull request snapshot; folding it decodes and changes
+  // nothing, because there is no host left to report it and no affordance left to refresh.
   const snapshot = {
     state: "open" as const,
     title: "Ship it",
@@ -1118,7 +1120,7 @@ const backgroundThreadUpdatesKeepTimestamp = Effect.gen(function* () {
   });
   const refreshed = yield* readActivity;
   assert.deepEqual(refreshed.updatedAt, createdAt);
-  assert.deepEqual(refreshed.thread.pullRequests?.[0]?.snapshot, snapshot);
+  assert.deepEqual(refreshed.thread.pullRequests?.[0]?.snapshot, null);
 
   yield* store.apply({
     id: EventId.make("event:background-updates:active-reordered"),
@@ -6791,7 +6793,9 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
     }),
   );
 
-  it.effect("a pull request watch keeps a finished thread working until it ends", () =>
+  // Nothing reads a host any more, so a watch left in older history has no reactor that could
+  // ever end it. It must not hold the thread open, or those threads sit in Working forever.
+  it.effect("a pull request watch stored in history holds a finished thread open", () =>
     Effect.gen(function* () {
       const store = yield* ProjectionStore.ProjectionStoreV2;
       const threadId = ThreadId.make("thread:watched-pull-request");
@@ -6899,15 +6903,8 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           },
         },
       ]);
-      assert.deepEqual((yield* store.getThreadShell(threadId))?.pendingBackgroundTasks, [
-        {
-          taskId: "pull-request-watch:github.com/pingdotgg/t3code#7",
-          description: "Watching pull request #7",
-          kind: "monitor",
-          awaited: true,
-        },
-      ]);
-      assert.equal(yield* phase, "running");
+      assert.deepEqual((yield* store.getThreadShell(threadId))?.pendingBackgroundTasks, []);
+      assert.equal(yield* phase, "completed");
 
       yield* syncPullRequests("unwatched", [link]);
       assert.deepEqual((yield* store.getThreadShell(threadId))?.pendingBackgroundTasks, []);
