@@ -34,7 +34,7 @@ labels:
   id: acceptance
   attributes:
   label: Acceptance checklist
-  description: One item per requirement, each phrased so a command or a capture settles it. The night agent copies this into `ACCEPT/<issue-number>-<slug>.md` verbatim.
+  description: One item per requirement, each phrased so a command or a capture settles it. The night agent copies this into the PR's Requirements status section verbatim.
   value: | - [ ] - [ ] `vp run check:changed` green, run-report in the PR body
   validations:
   required: true

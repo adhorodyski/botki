@@ -28,7 +28,7 @@ Night agents work unattended, so this file also carries the rules that keep an u
 - **routine** means the nightly schedule: pick a spec'd issue, build, verify, open a PR.
 - **provider** means the agent harness Botki talks to. Ours is Pi; others stay in the tree because upstream maintains them, but nothing we ship may depend on them.
 - **slice** means one issue-sized unit of work that fits in one night and one PR.
-- **ACCEPT** means the file under `ACCEPT/` that records how to verify a slice. See [Night runs](#night-runs).
+- **spec** means `specs/<issue>-<slug>.md`, a behavior description of one of our own features. See [specs/README.md](specs/README.md).
 
 ## The cut list (fork rule: never reintroduce)
 
@@ -55,7 +55,7 @@ New code is the last option, not the first. Before writing any, answer these thr
 2. **Upstream module.** Does an existing server service do this, or need one method added?
 3. **Existing component.** Does something in `apps/web/src/components/ui` or a feature component already render this?
 
-Custom code is allowed only after all three fail, with a one-line justification. Fill the reuse-first audit table in the issue template or ACCEPT, one row per question. `.repos/` holds vendored upstream references: prefer their patterns over invented ones.
+Custom code is allowed only after all three fail, with a one-line justification. Fill the reuse-first audit table in the issue template or the PR, one row per question. `.repos/` holds vendored upstream references: prefer their patterns over invented ones.
 
 ## Patterns
 
@@ -76,11 +76,11 @@ New code matches the idioms around it, per surface:
 ## Night runs
 
 - One issue is one PR, and a PR per task. Do not batch slices.
-- Commit prefix: `night(<slice>): ...`, e.g. `night(TS1b): add ACCEPT template`.
+- Commit prefix: `night(<slice>): ...`, e.g. `night(meta): add a spec`.
 - **Never force-push.** A night agent pushes commits and never rewrites shared history.
 - Every PR body ends with a run-report: **what you ran** (exact commands), **what passed** (counts, not vibes), **what you did not touch** (the files you deliberately left alone).
-- Each slice gets one `ACCEPT/<issue-number>-<slug>.md`, from [ACCEPT/template.md](ACCEPT/template.md). One PR = exactly one ACCEPT file, or a line saying why not.
-- Reference captures go in `ACCEPT/captures/<issue>/`, uploaded to GitHub. Never commit PR-only screenshots.
+- A feature we add over t3code ships or updates its `specs/` file in the same PR; cut PRs, bugfixes, and infra touch nothing there.
+- Merge-readiness is proved in the PR body's Requirements status section, never a committed file. Captures are uploaded to GitHub, never committed.
 - If you cannot finish a slice, open a draft PR with the run-report anyway, and put the blocker in needs-you. A silent no-show is the worst outcome.
 - Update the tracking issue when work lands. Do not leave a second checklist in the repo.
 

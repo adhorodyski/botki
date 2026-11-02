@@ -50,7 +50,7 @@ jobs:
               {
                 name: "needs-accept",
                 color: "e9967a",
-                description: "Waiting on the owner to run the slice's ACCEPT checklist.",
+                description: "Waiting on the owner to review the PR's Requirements status.",
               },
               {
                 name: "agent-context-increase",
