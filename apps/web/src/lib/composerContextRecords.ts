@@ -90,7 +90,7 @@ function pullRequestContextNumber(comment: ReviewCommentPresentation): number | 
 
 export type PullRequestContextDisplayState = "open" | "draft" | "merged" | "closed";
 
-export function pullRequestContextDisplayState(
+function pullRequestContextDisplayState(
   comment: ReviewCommentPresentation,
 ): PullRequestContextDisplayState | null {
   const pullRequest = comment.pullRequest;

@@ -6,7 +6,6 @@ import {
   resolveBranchSelectionTarget,
   resolveDraftEnvModeAfterBranchChange,
   resolveEffectiveEnvMode,
-  resolveBranchToolbarPrBranch,
   resolveLocalCheckoutBranchMismatch,
   sanitizeNewRefName,
   shouldIncludeBranchPickerItem,
@@ -31,17 +30,6 @@ describe("resolveDraftEnvModeAfterBranchChange", () => {
         effectiveEnvMode: "local",
       }),
     ).toBe("worktree");
-  });
-});
-
-describe("resolveBranchToolbarPrBranch", () => {
-  it("hides PR state while an optimistic branch switch is in flight", () => {
-    expect(
-      resolveBranchToolbarPrBranch({
-        activeThreadBranch: "feature/current",
-        resolvedActiveBranch: "feature/next",
-      }),
-    ).toBeNull();
   });
 });
 
@@ -212,24 +200,12 @@ describe("resolveBranchSelectionTarget", () => {
 });
 
 describe("shouldIncludeBranchPickerItem", () => {
-  it("keeps the synthetic checkout PR item visible for gh pr checkout input", () => {
-    expect(
-      shouldIncludeBranchPickerItem({
-        itemValue: "__checkout_pull_request__:1359",
-        normalizedQuery: "gh pr checkout 1359",
-        createBranchItemValue: "__create_new_branch__:gh pr checkout 1359",
-        checkoutPullRequestItemValue: "__checkout_pull_request__:1359",
-      }),
-    ).toBe(true);
-  });
-
   it("surfaces an existing ref matching the sanitized query", () => {
     expect(
       shouldIncludeBranchPickerItem({
         itemValue: "new-branch",
         normalizedQuery: "new branch",
         createBranchItemValue: null,
-        checkoutPullRequestItemValue: null,
       }),
     ).toBe(true);
   });

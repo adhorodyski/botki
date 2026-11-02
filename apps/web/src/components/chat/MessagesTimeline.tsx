@@ -91,7 +91,6 @@ import { type ThreadFindMatch } from "./threadFind";
 import { useThreadFindNavigation } from "./useThreadFindNavigation";
 import { TooltipScrollDismissArea } from "../ui/tooltip";
 import { WorktreeSetupCard } from "./WorktreeSetupCard";
-import { useOpenPrLink } from "~/lib/openPullRequestLink";
 import { useMediaQuery } from "~/hooks/useMediaQuery";
 import { cn } from "~/lib/utils";
 import { type TimestampFormat } from "@t3tools/contracts/settings";
@@ -461,7 +460,6 @@ const ConversationTimeline = memo(function ConversationTimeline({
     setExpandedAttemptIds(paintedExpandedAttemptIds);
   }
   const citationThreadRef = parseScopedThreadKey(routeThreadKey);
-  const openPullRequest = useOpenPrLink(citationThreadRef ?? undefined);
   const [minimapStripMap] = useState(() => new Map<string, HTMLSpanElement>());
   const [disclosureToggleSettling, setDisclosureToggleSettling] = useState(false);
   const disclosureAnchorKeyRef = useRef<string | null>(null);
@@ -1044,7 +1042,6 @@ const ConversationTimeline = memo(function ConversationTimeline({
     onSendAppMessage,
     onAppFullscreenChange,
     onFileDownload,
-    openPullRequest,
     onOpenToolDiff,
     onOpenTurnDiff,
     onOpenThread,

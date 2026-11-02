@@ -3366,7 +3366,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               routeRowThreadKey === threadKey ? revealActiveRow : undefined
                             }
                             isRouteThread={routeThreadKey === threadKey}
-                            openPullRequestsInRightPanel={routeThreadRef !== null}
                             jumpLabel={
                               showJumpHints ? (jumpLabelByKey.get(threadKey) ?? null) : null
                             }

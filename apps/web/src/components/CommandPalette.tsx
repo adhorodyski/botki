@@ -1,6 +1,3 @@
-import { threadPullRequestLinkMode } from "@t3tools/client-runtime/thread-pull-request-compatibility";
-import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
-
 import {
   scopedThreadKey,
   scopeProjectRef,
@@ -90,7 +87,6 @@ import { useAtomValue } from "@effect/atom-react";
 import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
-import { useOpenPanelPullRequestUrl } from "../hooks/useOpenPanelPullRequestUrl";
 import { copyThreadReference } from "../lib/copyThreadReference";
 import {
   queueWorkspaceFocusFromPalette,
@@ -126,7 +122,7 @@ import {
   useEnvironments,
   usePrimaryEnvironmentId,
 } from "../state/environments";
-import { useProjects, useServerConfigs, useThreadShells, waitForProject } from "../state/entities";
+import { useProjects, useThreadShells, waitForProject } from "../state/entities";
 import { resolveThreadActionProjectRef, startNewThreadFromContext } from "../lib/chatThreadActions";
 import {
   appendBrowsePathSegment,
@@ -146,7 +142,6 @@ import {
   useCommandPaletteMount,
   useCommandPaletteStore,
 } from "../commandPaletteStore";
-import { PULL_REQUESTS_PANEL_REF, useRightPanelStore } from "../rightPanelStore";
 import { getLatestThreadForProject, sortThreads } from "@t3tools/client-runtime/state/thread-sort";
 import {
   cn,
@@ -228,7 +223,6 @@ import {
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { Checkbox } from "./ui/checkbox";
 import { ProjectFilePicker } from "./files/ProjectFilePicker";
-import { openLinkPullRequestDialog } from "./pullRequest/LinkPullRequestDialog";
 import { ProjectContentSearchDialog } from "./search/ProjectContentSearchDialog";
 import { settingsForThisPlatform, SETTINGS_SECTION_LABELS } from "./settings/settingsSearch";
 import { primaryServerKeybindingsAtom } from "../state/server";
@@ -242,8 +236,6 @@ import { ComposerHandleContext, useComposerHandleContext } from "../composerHand
 import type { ChatComposerHandle } from "./chat/ChatComposer";
 import { pickableProjectGroups } from "@t3tools/client-runtime/state/project-grouping";
 import { buildSidebarProjectPickerEntries } from "../sidebarProjectGrouping";
-import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
-import { readPullRequestListPreferences } from "~/components/pullRequest/pullRequestListPreferences";
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import { threadRecentUse } from "@t3tools/shared/paletteSearch";
 
@@ -444,28 +436,15 @@ function OpenCommandPaletteDialog(props: {
     useHandleNewThread();
   const paletteRouteTarget = useThreadRouteTarget();
   const projects = useProjects();
-  const referenceThreadRef =
-    pathname === "/pull-requests"
-      ? environments.some((environment) => environment.serverConfig !== null)
-        ? PULL_REQUESTS_PANEL_REF
-        : null
-      : activeThread
-        ? scopeThreadRef(activeThread.environmentId, activeThread.id)
-        : null;
-  const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(referenceThreadRef);
-  const activeThreadServerConfig = useServerConfigs().get(
-    activeThread?.environmentId ?? ("" as EnvironmentId),
-  );
+  const referenceThreadRef = activeThread
+    ? scopeThreadRef(activeThread.environmentId, activeThread.id)
+    : null;
   const activeThreadReferenceCopyTarget =
-    referenceThreadRef === null || (pathname === "/pull-requests" && !openPanelPullRequestUrl)
+    referenceThreadRef === null
       ? null
       : resolveThreadReferenceCopyTarget({
           threadRef: referenceThreadRef,
           title: activeThread?.title ?? "",
-          openPanelPullRequestUrl,
-          pullRequests: activeThread?.pullRequests,
-          linkedPullRequestUrl:
-            activeThread?.linkedPullRequest?.url ?? activeThread?.branchPullRequest?.url ?? null,
         });
   const copyActiveThreadReference = async () => {
     if (activeThreadReferenceCopyTarget === null) return;
@@ -1337,44 +1316,12 @@ function OpenCommandPaletteDialog(props: {
     actionItems.push({
       kind: "action",
       value: "action:copy-thread-reference",
-      searchTerms:
-        activeThreadReferenceCopyTarget.kind === "pull-request"
-          ? ["copy", "pull request", "link", "reference"]
-          : ["copy", "thread", "thread id", "reference"],
-      title:
-        activeThreadReferenceCopyTarget.kind === "pull-request" ? "Copy PR link" : "Copy thread",
+      searchTerms: ["copy", "thread", "thread id", "reference"],
+      title: "Copy thread",
       description: activeThreadReferenceCopyTarget.description,
       icon: <LinkIcon className={ITEM_ICON_CLASS} />,
       shortcutCommand: "thread.copyReference",
       run: copyActiveThreadReference,
-    });
-  }
-
-  if (
-    activeThread !== null &&
-    threadPullRequestLinkMode(activeThreadServerConfig?.environment.capabilities) !== "unsupported"
-  ) {
-    const threadRef = scopeThreadRef(activeThread.environmentId, activeThread.id);
-    actionItems.push({
-      kind: "action",
-      value: "action:link-pull-request",
-      searchTerms: ["link", "pull request", "pr", "attach", "stack"],
-      title: "Link pull request to thread",
-      icon: <PullRequestGlyph.link className={ITEM_ICON_CLASS} />,
-      run: async () => {
-        openLinkPullRequestDialog(threadRef);
-      },
-    });
-    actionItems.push({
-      kind: "action",
-      value: "action:open-thread-pull-requests",
-      searchTerms: ["pull requests", "linked", "stack", "prs"],
-      title: "Show linked pull requests",
-      disabled: visibleThreadPullRequests(activeThread.pullRequests).length === 0,
-      icon: <PullRequestGlyph.link className={ITEM_ICON_CLASS} />,
-      run: async () => {
-        useRightPanelStore.getState().open(threadRef, "pull-requests");
-      },
     });
   }
 
@@ -1505,34 +1452,6 @@ function OpenCommandPaletteDialog(props: {
   actionItems.push(changeAppearanceItem);
 
   actionItems.push(themeEditorItem);
-
-  if (environments.some((environment) => environment.serverConfig !== null)) {
-    actionItems.push({
-      kind: "action",
-      value: "action:pull-requests",
-      searchTerms: [
-        ...new Set(
-          sourceControlClients.definitions.flatMap((definition) => {
-            const shortLabel = definition.changeRequest.shortLabel.toLowerCase();
-            return [
-              definition.changeRequest.plural,
-              `${shortLabel}s`,
-              shortLabel,
-              ...definition.label.toLowerCase().split(/[^a-z0-9]+/u),
-            ].filter(Boolean);
-          }),
-        ),
-        "review",
-        "merge",
-        "branch",
-      ],
-      title: "Open pull requests",
-      icon: <PullRequestGlyph.pullRequest className={ITEM_ICON_CLASS} />,
-      run: async () => {
-        await navigate({ to: "/pull-requests", search: readPullRequestListPreferences() });
-      },
-    });
-  }
 
   actionItems.push({
     kind: "action",

@@ -50,7 +50,6 @@ import {
   type GitActionIconName,
   type GitActionMenuItem,
   type GitQuickAction,
-  type DefaultBranchConfirmableAction,
   requiresDefaultBranchConfirmation,
   resolveDefaultBranchActionDialogCopy,
   resolveFeatureBranchUnavailableReason,
@@ -123,7 +122,7 @@ interface GitActionsControlProps {
 }
 
 interface PendingDefaultBranchAction {
-  action: DefaultBranchConfirmableAction;
+  action: "push" | "commit_push";
   branchName: string;
   includesCommit: boolean;
   commitMessage?: string;
@@ -229,7 +228,6 @@ function getMenuActionDisabledReason({
   const hasChanges = gitStatus.hasWorkingTreeChanges;
   const isAhead = gitStatus.aheadCount > 0;
   const isBehind = gitStatus.behindCount > 0;
-  const terminology = getSourceControlPresentation(gitStatus.sourceControlProvider).terminology;
 
   if (item.id === "commit") {
     if (!hasChanges) {
@@ -257,19 +255,7 @@ function getMenuActionDisabledReason({
     return "Push is currently unavailable.";
   }
 
-  if (!hasBranch) {
-    return `Detached HEAD: check out a branch before creating a ${terminology.singular}.`;
-  }
-  if (!gitStatus.hasUpstream && !hasPrimaryRemote) {
-    return `Add an "origin" remote before creating a ${terminology.singular}.`;
-  }
-  if ((gitStatus.aheadOfDefaultCount ?? gitStatus.aheadCount) <= 0) {
-    return `No local commits to include in a ${terminology.singular}.`;
-  }
-  if (isBehind) {
-    return `Branch is behind upstream. Pull/rebase before creating a ${terminology.singular}.`;
-  }
-  return `Create ${terminology.singular} is currently unavailable.`;
+  return null;
 }
 
 const COMMIT_DIALOG_TITLE = "Commit changes";
@@ -1043,7 +1029,6 @@ export default function GitActionsControl({
   });
   const { data: gitStatus, error: gitStatusError } = gitStatusQuery;
   const sourceControlPresentation = getSourceControlPresentation(gitStatus?.sourceControlProvider);
-  const changeRequestTerminology = sourceControlPresentation.terminology;
   const SourceControlIcon = sourceControlPresentation.Icon;
   const isRepo = gitStatus?.isRepo ?? true;
   const hasPrimaryRemote = gitStatus?.hasPrimaryRemote ?? false;
@@ -1100,12 +1085,7 @@ export default function GitActionsControl({
     isGitActionRunning,
     hasPrimaryRemote,
   );
-  const quickAction = resolveQuickAction(
-    gitStatusForActions,
-    isGitActionRunning,
-    isDefaultRef,
-    hasPrimaryRemote,
-  );
+  const quickAction = resolveQuickAction(gitStatusForActions, isGitActionRunning, hasPrimaryRemote);
   const quickActionDisabledReason = !canWriteSourceControl
     ? "This connection cannot change source control."
     : quickAction.disabled
@@ -1122,10 +1102,8 @@ export default function GitActionsControl({
     !changesTotals?.deletions;
   const pendingDefaultBranchActionCopy = pendingDefaultBranchAction
     ? resolveDefaultBranchActionDialogCopy({
-        action: pendingDefaultBranchAction.action,
         branchName: pendingDefaultBranchAction.branchName,
         includesCommit: pendingDefaultBranchAction.includesCommit,
-        terminology: changeRequestTerminology,
       })
     : null;
   // Keep enabled until live status loads; the server rejects stale requests.
@@ -1164,8 +1142,7 @@ export default function GitActionsControl({
     const actionStatus = statusOverride ?? gitStatusForActions;
     const actionBranch = actionStatus?.refName ?? null;
     const actionIsDefaultBranch = featureBranch ? false : isDefaultRef;
-    const actionCanCommit =
-      action === "commit" || action === "commit_push" || action === "commit_push_pr";
+    const actionCanCommit = action === "commit" || action === "commit_push";
     const includesCommit =
       actionCanCommit &&
       (action === "commit" || !!actionStatus?.hasWorkingTreeChanges || featureBranch);
@@ -1174,12 +1151,7 @@ export default function GitActionsControl({
       requiresDefaultBranchConfirmation(action, actionIsDefaultBranch) &&
       actionBranch
     ) {
-      if (
-        action !== "push" &&
-        action !== "create_pr" &&
-        action !== "commit_push" &&
-        action !== "commit_push_pr"
-      ) {
+      if (action !== "push" && action !== "commit_push") {
         return;
       }
       setPendingDefaultBranchAction({
@@ -1229,12 +1201,9 @@ export default function GitActionsControl({
 
     const actionResult = result.value;
     syncThreadBranchAfterGitAction(actionResult);
-    const createdPullRequest = actionResult.pr.status === "created";
     setInlineSuccess({
-      title: createdPullRequest
-        ? `Created ${changeRequestTerminology.shortLabel}`
-        : actionResult.toast.title,
-      description: createdPullRequest ? null : (actionResult.toast.description ?? null),
+      title: actionResult.toast.title,
+      description: actionResult.toast.description ?? null,
       scopeKey: successScopeKey,
       expiresAtMs: inlineSuccessExpiresAt(),
     });
@@ -1334,10 +1303,6 @@ export default function GitActionsControl({
     if (item.disabled) return;
     if (item.dialogAction === "push") {
       void runGitActionWithToast({ action: "push" });
-      return;
-    }
-    if (item.dialogAction === "create_pr") {
-      void runGitActionWithToast({ action: "create_pr" });
       return;
     }
     setExcludedFiles(new Set());
@@ -1461,8 +1426,7 @@ export default function GitActionsControl({
       ) : null}
       {gitStatusForActions?.refName === null && (
         <p className="px-2 py-1.5 text-xs text-warning">
-          Detached HEAD: create and check out a branch to enable push and{" "}
-          {changeRequestTerminology.singular} actions.
+          Detached HEAD: create and check out a branch to enable push.
         </p>
       )}
       {gitStatusForActions &&

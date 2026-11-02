@@ -95,7 +95,6 @@ interface BranchToolbarProps {
   autoEnvironmentLabel?: string | undefined;
   onAutoEnvironment?: (() => void) | undefined;
   envLocked: boolean;
-  onCheckoutPullRequestRequest?: (reference: string) => void;
   onComposerFocusRequest?: () => void;
   /** Shown at the end of the composer strip, such as the new thread's permissions. */
   trailing?: ReactNode;
@@ -613,7 +612,6 @@ export const BranchToolbar = memo(function BranchToolbar({
   autoEnvironmentLabel,
   onAutoEnvironment,
   envLocked,
-  onCheckoutPullRequestRequest,
   onComposerFocusRequest,
   availableEnvironments,
   onEnvironmentChange,
@@ -728,7 +726,6 @@ export const BranchToolbar = memo(function BranchToolbar({
             {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
             startFromOrigin={startFromOrigin}
             onStartFromOriginChange={onStartFromOriginChange}
-            {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
             {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
           />
         ) : null}
@@ -823,7 +820,6 @@ export const BranchToolbar = memo(function BranchToolbar({
           {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
           startFromOrigin={startFromOrigin}
           onStartFromOriginChange={onStartFromOriginChange}
-          {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
           {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
         />
       ) : null}

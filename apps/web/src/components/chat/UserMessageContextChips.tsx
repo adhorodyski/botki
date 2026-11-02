@@ -1,7 +1,7 @@
 import { documentChipKindForFileName } from "~/pierre-icons";
 import { isSvgAttachment } from "@t3tools/shared/image";
 import { useRenderedAppearance } from "../../hooks/useTheme";
-import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
+import { GitPullRequestArrowIcon } from "lucide-react";
 import { ReadOnlySourcePreview } from "../files/AttachmentFilePreview";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { COMPOSER_CONTEXT_KINDS } from "@t3tools/contracts";
@@ -34,18 +34,15 @@ import {
   ContextChipPopover as UserMessageContextPopover,
   FileChip,
   ImageChipButton,
-  PULL_REQUEST_CHIP_KINDS,
-  PullRequestChip,
   UnresolvedChip,
 } from "../contextChipParts";
 import {
   isPullRequestSummaryContext,
-  pullRequestContextDisplayState,
   pullRequestContextKindLabel,
   reviewCommentContextLabel,
 } from "~/lib/composerContextRecords";
 import { formatComposerContextReference } from "@t3tools/shared/composerContextReferences";
-import { ContextChip, ContextChipLabel, type ContextChipKind } from "../ContextChip";
+import { ContextChip, ContextChipLabel } from "../ContextChip";
 import { createContextPresentationRegistry } from "../contextPresentationRegistry";
 import type { ChatMarkdownContextReference } from "../ChatMarkdown";
 import {
@@ -114,27 +111,6 @@ function UserMessageSkillChip(props: {
       description={skill ? skillPopoverDescription(skill) : null}
       copyMarkdown={props.copyMarkdown}
       onViewInstructions={skillInstructionsOpener(threadRef, skill)}
-    />
-  );
-}
-
-function UserMessagePullRequestContextChip(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "review-comment" }>;
-  copyMarkdown: string;
-  kind: ContextChipKind;
-}) {
-  const { activeThreadEnvironmentId, openPullRequest } = use(TimelineRowCtx);
-  const metadata = props.record.pullRequest;
-  if (metadata === undefined) return null;
-  return (
-    <PullRequestChip
-      metadata={metadata}
-      environmentId={activeThreadEnvironmentId}
-      label={reviewCommentContextLabel(props.record)}
-      kindLabel={pullRequestContextKindLabel(props.record)}
-      kind={props.kind}
-      copyMarkdown={props.copyMarkdown}
-      onOpen={openPullRequest}
     />
   );
 }
@@ -447,22 +423,12 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         const isPullRequest = isPullRequestSummaryContext(record);
         const label = reviewCommentContextLabel(record);
         const kindLabel = isPullRequest ? pullRequestContextKindLabel(record) : "Review comment";
-        const pullRequestState = pullRequestContextDisplayState(record) ?? "unknown";
-        if (isPullRequest && record.pullRequest !== undefined) {
-          return (
-            <UserMessagePullRequestContextChip
-              record={record}
-              copyMarkdown={context.copyMarkdown}
-              kind={PULL_REQUEST_CHIP_KINDS[pullRequestState]}
-            />
-          );
-        }
         return (
           <UserMessageContextPopover
             copyMarkdown={context.copyMarkdown}
             accessibleLabel={`${kindLabel}, ${label}${record.pullRequest ? `, ${record.pullRequest.title}` : ""}`}
-            kind={isPullRequest ? PULL_REQUEST_CHIP_KINDS[pullRequestState] : "review-comment"}
-            icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <MessageCircleIcon />}
+            kind={isPullRequest ? "pull-request" : "review-comment"}
+            icon={isPullRequest ? <GitPullRequestArrowIcon /> : <MessageCircleIcon />}
             label={label}
           >
             <UserMessageReviewCommentCard
@@ -479,7 +445,6 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
                 ...(record.fenceLanguage !== undefined
                   ? { fenceLanguage: record.fenceLanguage }
                   : {}),
-                ...(record.pullRequest !== undefined ? { pullRequest: record.pullRequest } : {}),
               }}
             />
           </UserMessageContextPopover>

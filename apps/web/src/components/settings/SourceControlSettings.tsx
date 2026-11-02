@@ -1,5 +1,5 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, GitBranchIcon } from "lucide-react";
 import * as Option from "effect/Option";
 import { useState, type ReactNode } from "react";
 import type {
@@ -43,7 +43,6 @@ import {
   useSettingsSearchTargetId,
 } from "./settingsLayout";
 import { searchableSetting, sourceControlHostSettingsSearchId } from "./settingsSearch";
-import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { sourceControlIcon } from "~/sourceControlPresentation";
 
@@ -343,7 +342,7 @@ function EmptySourceControlDiscovery({
     <SettingsSection id={searchableSetting("source-control").id} title="Server environment">
       <Empty>
         <EmptyMedia variant="icon">
-          <PullRequestGlyph.pullRequest />
+          <GitBranchIcon />
         </EmptyMedia>
         <EmptyHeader>
           <EmptyTitle>

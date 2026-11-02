@@ -18,7 +18,7 @@ import {
 import type { AsyncResult, Atom } from "effect/reactivity";
 import type { CommandOutputView } from "@t3tools/client-runtime/state/command-output";
 import type { WorkflowOpening } from "@t3tools/client-runtime/state/subagentRuntime";
-import { createContext, type MouseEvent, type ReactNode } from "react";
+import { createContext, type ReactNode } from "react";
 import { type LegendListRef } from "@legendapp/list/react";
 import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplates";
 import type { PendingApproval } from "../../session-logic";
@@ -88,7 +88,6 @@ export interface TimelineRowSharedState {
   onToggleAttemptFold: (attemptId: RunAttemptId) => void;
   onFileOpen: (attachment: ChatFileAttachment) => void;
   onFileDownload: (attachment: ChatFileAttachment) => void;
-  openPullRequest: (event: MouseEvent<HTMLElement>, url: string) => void;
   onToggleWorkGroup: (groupId: string, anchorKey: string) => void;
   onToggleWorkEntry: (anchorKey: string, collapsed: boolean) => void;
   onCancelWorktreeSetup: (() => void) | null;

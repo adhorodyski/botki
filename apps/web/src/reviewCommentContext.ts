@@ -2,7 +2,7 @@ import type { FileDiffMetadata, SelectedLineRange, SelectionSide } from "@pierre
 import { PullRequestContextMetadata, type PullRequestReviewPosition } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 
-import { isLineInFileDiff } from "./components/pullRequest/pullRequestDiff.logic";
+import { isLineInFileDiff } from "./lib/diffRendering";
 
 const ReviewCommentSelectionSchema = Schema.Struct({
   start: Schema.Number,
@@ -83,7 +83,7 @@ export function buildFileReviewComment(input: {
   };
 }
 
-export function inferReviewCommentFenceLanguage(filePath: string): string {
+function inferReviewCommentFenceLanguage(filePath: string): string {
   const normalizedPath = filePath.replaceAll("\\", "/");
   const fileName = normalizedPath.slice(normalizedPath.lastIndexOf("/") + 1).toLowerCase();
   const extensionIndex = fileName.lastIndexOf(".");
