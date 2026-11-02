@@ -11,5 +11,4 @@ export const {
   threadPullRequestKeyOf,
   resolveThreadPullRequestChains,
   threadPullRequestsOf,
-  applyThreadPullRequestLinkUpdate,
 } = makeThreadPullRequests(sourceControlDefinitions);
