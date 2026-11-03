@@ -28,6 +28,7 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   RunId,
   ThreadId,
+  BotId,
   type OrchestrationV2ThreadShell,
   type OrchestrationV2ShellSnapshot,
   type ModelSelection,
@@ -1265,6 +1266,17 @@ describe("composerDraftStore project draft thread mapping", () => {
       loadBalancedEnvironmentId: null,
     });
     expect(store.getComposerDraft(draftId)?.prompt).toBe("keep this prompt");
+  });
+
+  it("keeps a staged bot when workspace context is applied to the draft", () => {
+    const store = useComposerDraftStore.getState();
+    store.setProjectDraftThreadId(projectRef, draftId, { threadId });
+    store.setDraftThreadContext(draftId, { botId: BotId.make("viki") });
+    expect(store.getDraftThread(draftId)).toMatchObject({ botId: "viki" });
+
+    // A later context write that omits botId must not drop the staged bot.
+    store.setDraftThreadContext(draftId, { branch: "main" });
+    expect(store.getDraftThread(draftId)).toMatchObject({ botId: "viki", branch: "main" });
   });
 });
 
