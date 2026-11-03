@@ -1,9 +1,11 @@
 import {
+  BotId,
   ModelSelection,
   OrchestrationV2AppThread,
   ProjectId,
   ProviderInstanceId,
   type RuntimeMode,
+  ThreadId,
 } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -29,7 +31,32 @@ export class RuntimePolicyResolveError extends Schema.TaggedError<RuntimePolicyR
   }
 }
 
-export const RuntimePolicyV2Error = Schema.Union([RuntimePolicyResolveError]);
+/**
+ * A turn on a bot thread whose provider cannot carry the brief. Refusing beats answering as
+ * the plain assistant while the UI shows a name: a silent-wrong bot is the failure this guards.
+ */
+export class BotInstructionsUnsupportedError extends Schema.TaggedError<BotInstructionsUnsupportedError>()(
+  "BotInstructionsUnsupportedError",
+  {
+    threadId: ThreadId,
+    botId: BotId,
+    providerInstanceId: ProviderInstanceId,
+    displayName: Schema.optional(Schema.String),
+  },
+) {
+  override get message(): string {
+    const provider =
+      this.displayName === undefined
+        ? `provider ${this.providerInstanceId}`
+        : `${this.displayName} (${this.providerInstanceId})`;
+    return `This bot's brief cannot be delivered to ${provider}, so the turn would answer as the plain assistant instead of as the bot. Choose a provider that carries bot briefs, or start the chat without a bot.`;
+  }
+}
+
+export const RuntimePolicyV2Error = Schema.Union([
+  RuntimePolicyResolveError,
+  BotInstructionsUnsupportedError,
+]);
 export type RuntimePolicyV2Error = typeof RuntimePolicyV2Error.Type;
 
 export const RuntimePolicyV2Override = Schema.Struct({
@@ -89,10 +116,19 @@ export const layerFromProjectStore: Layer.Layer<
     return RuntimePolicyV2.of({
       resolve: Effect.fn("RuntimePolicyV2.resolve")(function* (input) {
         const instance = yield* providerInstances.getInstance(input.modelSelection.instanceId);
-        const supportedRuntimeModes =
-          instance === undefined
-            ? undefined
-            : (yield* instance.snapshot.getSnapshot).supportedRuntimeModes;
+        const snapshot = instance === undefined ? undefined : yield* instance.snapshot.getSnapshot;
+        const supportedRuntimeModes = snapshot?.supportedRuntimeModes;
+        // A bot thread on a provider that never declared the capability fails here, before the
+        // provider process starts. Absent means unsupported, so no provider drops a brief by
+        // having forgotten to opt in.
+        if (input.thread.botId != null && snapshot?.supportsBotInstructions !== true) {
+          return yield* new BotInstructionsUnsupportedError({
+            threadId: input.thread.id,
+            botId: input.thread.botId,
+            providerInstanceId: input.modelSelection.instanceId,
+            ...(snapshot?.displayName === undefined ? {} : { displayName: snapshot.displayName }),
+          });
+        }
         const cwd =
           input.thread.worktreePath ??
           (yield* projects.get(input.thread.projectId).pipe(

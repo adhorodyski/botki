@@ -66,11 +66,17 @@ const grokInstanceId = ProviderInstanceId.make("grok");
 const supportedRuntimeModesByInstance = new Map<ProviderInstanceId, ReadonlyArray<RuntimeMode>>([
   [grokInstanceId, ["approval-required", "auto", "full-access"]],
 ]);
+// One instance declares the bot-brief capability and one does not, so the guard is tested in
+// both directions without a real provider.
+const briefCapableInstanceId = ProviderInstanceId.make("pi");
 const providerInstanceFor = (instanceId: ProviderInstanceId) =>
   ({
     snapshot: {
       getSnapshot: Effect.succeed({
         supportedRuntimeModes: supportedRuntimeModesByInstance.get(instanceId),
+        ...(instanceId === briefCapableInstanceId
+          ? { displayName: "Pi", supportsBotInstructions: true }
+          : {}),
       } as ServerProvider),
     },
   }) as ProviderInstance;
@@ -173,10 +179,58 @@ it.layer(layerTest(layerRecordingStaging(stagedByThread)))(
             ...makeThread({ now: yield* DateTime.now, worktreePath: null }),
             botId: BotId.make("viki"),
           },
-          modelSelection,
+          modelSelection: { instanceId: briefCapableInstanceId, model: "test-model" },
         });
         assert.deepEqual(stagedByThread, [BotId.make("viki")]);
         assert.equal(policy.botInstructionsPath, "/state/b.md");
+      }),
+    );
+
+    // The silent-wrong case: a provider that cannot carry the brief must stop the turn rather
+    // than stage a file nobody reads.
+    it.effect("refuses a bot turn on a provider that cannot carry the brief", () =>
+      Effect.gen(function* () {
+        stagedByThread.length = 0;
+        const result = yield* (yield* RuntimePolicy.RuntimePolicyV2)
+          .resolve({
+            thread: {
+              ...makeThread({ now: yield* DateTime.now, worktreePath: null }),
+              botId: BotId.make("viki"),
+            },
+            modelSelection: { instanceId: grokInstanceId, model: "test-model" },
+          })
+          .pipe(Effect.flip);
+        assert.instanceOf(result, RuntimePolicy.BotInstructionsUnsupportedError);
+        assert.include(result.message, "grok");
+        // Refused before staging, so no brief file is left behind for a session to pick up.
+        assert.deepEqual(stagedByThread, []);
+      }),
+    );
+
+    it.effect("carries the brief on a provider that declares it", () =>
+      Effect.gen(function* () {
+        const policy = yield* (yield* RuntimePolicy.RuntimePolicyV2).resolve({
+          thread: {
+            ...makeThread({ now: yield* DateTime.now, worktreePath: null }),
+            botId: BotId.make("viki"),
+          },
+          modelSelection: { instanceId: briefCapableInstanceId, model: "test-model" },
+        });
+        assert.equal(policy.botInstructionsPath, "/state/b.md");
+      }),
+    );
+
+    // Absent capability is unsupported, but only for a bot thread: a plain thread on the same
+    // provider is untouched, which is what keeps the null-botId prompt byte-identical.
+    it.effect("leaves a plain thread alone on a provider with no declared capability", () =>
+      Effect.gen(function* () {
+        stagedByThread.length = 0;
+        const policy = yield* (yield* RuntimePolicy.RuntimePolicyV2).resolve({
+          thread: makeThread({ now: yield* DateTime.now, worktreePath: null }),
+          modelSelection: { instanceId: grokInstanceId, model: "test-model" },
+        });
+        assert.isUndefined(policy.botInstructionsPath);
+        assert.deepEqual(stagedByThread, [undefined]);
       }),
     );
   },
