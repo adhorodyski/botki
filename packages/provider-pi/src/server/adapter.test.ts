@@ -1616,6 +1616,29 @@ describe("PiAdapterV2", () => {
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
+  // A brief that cannot be delivered must stop the turn: extensions carry it into Pi.
+  it.effect("refuses a bot thread whose launch args disable extensions", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakePi;
+      const adapter = yield* makeAdapter(fake, "--no-extensions");
+      const error = yield* adapter
+        .openSession({
+          threadId: THREAD_ID,
+          providerSessionId: SESSION_ID,
+          modelSelection: modelSelection("default"),
+          runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+            runtimeMode: "full-access",
+            interactionMode: "default",
+            cwd: null,
+            botInstructionsPath: "/state/bot-instructions/viki.md",
+          }),
+        })
+        .pipe(Effect.scoped, Effect.flip);
+      assert.equal(error._tag, "ProviderAdapterProtocolError");
+      assert.match(String(error), /extensions disabled/);
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
   it.effect("rejects a resume while a turn is active", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakePi;

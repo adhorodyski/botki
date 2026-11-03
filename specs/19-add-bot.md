@@ -24,9 +24,10 @@ then the brief as written. Editing name, role, or brief rewrites that file. It i
 reading and moving between machines, not the source, so editing it by hand does not change how
 the bot behaves.
 
-**Limits today.** A brief changes behavior only on the Pi provider; a bot run on another provider
-answers as the plain assistant. One bot per conversation — a room where several bots share one
-thread is not built. A chat still lives on a workspace behind the scenes, which is why the chat
-pane's own header still names a repo. Bots have no avatars and no memory between chats:
-everything a bot knows comes from its brief. Bots are configured per server, on the machine
-running it.
+**Limits today.** A brief reaches a turn on providers that carry one; a chat whose provider
+cannot will refuse the turn and name that provider rather than answer as an unnamed assistant —
+including the dev Replay provider, which replays answers rather than generating them. One bot
+per conversation — a room where several bots share one thread is not built. A chat still lives
+on a workspace behind the scenes, which is why the chat pane's own header still names a repo.
+Bots have no avatars and no memory between chats: everything a bot knows comes from its brief.
+Bots are configured per server, on the machine running it.

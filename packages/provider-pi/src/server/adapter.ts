@@ -461,6 +461,16 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
       if (!resolvedLaunchArgs.ok) {
         return yield* protocolError(resolvedLaunchArgs.message);
       }
+      // The brief arrives through the T3 extension, so a launch that turns extensions off would
+      // answer as the plain assistant while the UI still shows the bot's name.
+      if (
+        input.runtimePolicy.botInstructionsPath !== undefined &&
+        !piT3ExtensionActive(resolvedLaunchArgs.args)
+      ) {
+        return yield* protocolError(
+          "Pi cannot receive a bot brief with extensions disabled. Remove --no-extensions from the Pi launch arguments, or send this message on a thread with no bot.",
+        );
+      }
       const launch = buildPiRpcLaunch({
         launchArgs: resolvedLaunchArgs.args,
         environment: options.environment,
@@ -3297,6 +3307,11 @@ function piSubagentOutput(result: unknown): string {
     if (text.length > 0) return text;
   }
   return "";
+}
+
+/** True unless the launch args turn extensions off, which is how a brief would go undelivered. */
+function piT3ExtensionActive(launchArgs: ReadonlyArray<string>): boolean {
+  return !launchArgs.includes("--no-extensions") && !launchArgs.includes("-ne");
 }
 
 function piExtensionDisplayName(extensionPath: string | undefined): string {
