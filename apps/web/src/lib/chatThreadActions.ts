@@ -1,5 +1,6 @@
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import type {
+  BotId,
   EnvironmentId,
   ModelSelection,
   ProjectId,
@@ -25,6 +26,7 @@ interface NewThreadHandler {
       worktreePath?: string | null;
       envMode?: DraftThreadEnvMode;
       startFromOrigin?: boolean;
+      botId?: BotId;
     },
   ): Promise<unknown>;
 }
@@ -84,12 +86,13 @@ export function resolveThreadActionProjectRef(
 
 export async function startNewThreadFromContext(
   context: ChatThreadActionContext,
+  options?: { readonly botId?: BotId },
 ): Promise<boolean> {
   const projectRef = resolveThreadActionProjectRef(context);
   if (!projectRef) {
     return false;
   }
 
-  await context.handleNewThread(projectRef);
+  await context.handleNewThread(projectRef, options);
   return true;
 }

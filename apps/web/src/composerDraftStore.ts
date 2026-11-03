@@ -26,6 +26,7 @@ import {
   type ScopedThreadRef,
   ThreadId,
   SnapShotSource,
+  BotId,
 } from "@t3tools/contracts";
 import {
   parseScopedProjectKey,
@@ -318,6 +319,7 @@ const PersistedDraftThreadState = Schema.Struct({
   worktreePath: Schema.NullOr(Schema.String),
   envMode: DraftThreadEnvModeSchema,
   startFromOrigin: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  botId: Schema.optionalKey(BotId),
   promotedTo: Schema.optionalKey(
     Schema.NullOr(
       Schema.Struct({
@@ -411,6 +413,8 @@ export interface DraftSessionState {
   worktreePath: string | null;
   envMode: DraftThreadEnvMode;
   startFromOrigin: boolean;
+  /** Set when the draft will start a bot's thread; carried to the launch that creates it. */
+  botId?: BotId;
   promotedTo?: ScopedThreadRef | null;
 }
 
@@ -465,6 +469,7 @@ interface ComposerDraftStoreState {
       interactionMode?: ProviderInteractionMode;
       environmentSelection?: "auto" | "manual";
       loadBalancedEnvironmentId?: EnvironmentId | null;
+      botId?: BotId;
     },
   ) => void;
   setProjectDraftThreadId: (
@@ -481,6 +486,7 @@ interface ComposerDraftStoreState {
       interactionMode?: ProviderInteractionMode;
       environmentSelection?: "auto" | "manual";
       loadBalancedEnvironmentId?: EnvironmentId | null;
+      botId?: BotId;
     },
   ) => void;
   setDraftThreadContext: (
@@ -496,6 +502,7 @@ interface ComposerDraftStoreState {
       interactionMode?: ProviderInteractionMode;
       environmentSelection?: "auto" | "manual";
       loadBalancedEnvironmentId?: EnvironmentId | null;
+      botId?: BotId;
     },
   ) => void;
   clearProjectDraftThreadId: (projectRef: ScopedProjectRef) => void;
@@ -1476,6 +1483,7 @@ function createDraftThreadState(
     interactionMode?: ProviderInteractionMode;
     environmentSelection?: "auto" | "manual";
     loadBalancedEnvironmentId?: EnvironmentId | null;
+    botId?: BotId;
   },
 ): DraftThreadState {
   const projectChanged =
@@ -1524,6 +1532,13 @@ function createDraftThreadState(
     envMode:
       options?.envMode ?? (nextWorktreePath ? "worktree" : (existingThread?.envMode ?? "local")),
     startFromOrigin: nextStartFromOrigin,
+    // A draft belongs to one bot for its whole life: set at creation, never carried over to a
+    // draft for a different project, and never dropped while the same draft is still open.
+    ...(options?.botId !== undefined
+      ? { botId: options.botId }
+      : !projectChanged && existingThread?.botId !== undefined
+        ? { botId: existingThread.botId }
+        : {}),
     promotedTo: null,
   };
 }
