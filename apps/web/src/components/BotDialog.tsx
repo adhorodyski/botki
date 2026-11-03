@@ -29,7 +29,7 @@ interface BotDialogProps {
   readonly environmentId: EnvironmentId;
   /** Null opens the create form; a bot opens the same form prefilled. */
   readonly bot: Bot | null;
-  /** Runs after any saved mutation or a delete, so the Team list re-reads. */
+  /** Runs after any saved mutation or a delete, so the settings list re-reads. */
   readonly onSettled: () => void;
   readonly onOpenChange: (open: boolean) => void;
 }
@@ -109,8 +109,8 @@ export function BotDialog({ environmentId, bot, onSettled, onOpenChange }: BotDi
             <DialogHeader>
               <DialogTitle>{bot ? `Edit ${bot.name}` : "Add bot"}</DialogTitle>
               <DialogDescription>
-                A bot is a name, a role, and a brief. Every thread you start from it answers
-                according to that brief.
+                A bot is a name, a role, and a brief. Every chat you start with it answers according
+                to that brief.
               </DialogDescription>
             </DialogHeader>
             <DialogPanel>
