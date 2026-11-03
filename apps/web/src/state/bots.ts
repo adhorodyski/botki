@@ -17,7 +17,7 @@ export const botsList = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntim
   staleTimeMs: 10_000,
 });
 
-export const botsMutate = createEnvironmentRpcCommand(connectionAtomRuntime, {
+const botsMutate = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:bots:mutate",
   tag: WS_METHODS.botsMutate,
 });

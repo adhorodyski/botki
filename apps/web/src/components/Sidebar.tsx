@@ -1,6 +1,6 @@
 import { liveShellEnvironmentIdsAtom } from "../state/shell";
 import { attachSidebarTree, SIDEBAR_TREE_PROPS } from "../lib/sidebarTree";
-import { type EnvironmentId, type ScopedProjectRef } from "@t3tools/contracts";
+import { type BotId, type EnvironmentId, type ScopedProjectRef } from "@t3tools/contracts";
 import type { EnvironmentServerConfig } from "@t3tools/client-runtime/connection";
 import { ThreadContextDragGhost } from "./chat/ThreadContextDragGhost";
 import {
@@ -249,7 +249,7 @@ import {
   useComboboxFilter,
 } from "./ui/combobox";
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
-import { SidebarTeamSection } from "./sidebar/SidebarTeamSection";
+import { SidebarNewChatMenu } from "./sidebar/SidebarNewChatMenu";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
 import { TooltipProvider } from "./ui/tooltip";
@@ -322,15 +322,20 @@ const sidebarProviderEntriesAtom = Atom.make((get) => {
 }).pipe(Atom.withLabel("sidebar-provider-entries"));
 
 // A thread row names the bot it belongs to, so bots are read per environment alongside them.
+type SidebarBot = { readonly botId: BotId; readonly name: string; readonly role: string };
+
 const sidebarBotsAtom = Atom.make((get) => {
-  const byKey = new Map<string, { readonly name: string; readonly role: string }>();
+  const byKey = new Map<string, SidebarBot>();
+  const listed: SidebarBot[] = [];
   for (const [environmentId] of get(environmentPresentations.serverConfigsAtom)) {
     const result = get(botsList({ environmentId, input: {} }));
     for (const bot of AsyncResult.getOrElse(result, () => null)?.bots ?? []) {
-      byKey.set(`${environmentId}:${bot.id}`, { name: bot.name, role: bot.role });
+      const entry = { botId: bot.id, name: bot.name, role: bot.role };
+      byKey.set(`${environmentId}:${bot.id}`, entry);
+      listed.push(entry);
     }
   }
-  return byKey;
+  return { byKey, listed: listed.toSorted((a, b) => a.name.localeCompare(b.name)) };
 }).pipe(Atom.withLabel("sidebar-bots"));
 
 const EMPTY_PROVIDER_ENTRIES: ReadonlyMap<string, SidebarProviderEntry> = new Map();
@@ -835,7 +840,7 @@ function useSidebarLookups() {
   const environments = useEnvironmentIdentities();
   const serverConfigs = useServerConfigs();
   const providerEntriesByEnvironment = useAtomValue(sidebarProviderEntriesAtom);
-  const botsByKey = useAtomValue(sidebarBotsAtom);
+  const bots = useAtomValue(sidebarBotsAtom);
   const projectGroups = useSidebarProjectGroups();
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
@@ -866,7 +871,7 @@ function useSidebarLookups() {
     projectGroups,
     environmentLabelById,
     providerEntriesByEnvironment,
-    botsByKey,
+    bots,
     projectByKey,
     projectDisplayNameByKey,
     projectGroupByScopeKey,
@@ -931,7 +936,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     projectGroups,
     environmentLabelById,
     providerEntriesByEnvironment,
-    botsByKey,
+    bots,
     projectByKey,
     projectDisplayNameByKey,
     projectGroupByScopeKey,
@@ -1131,6 +1136,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           ),
         );
   const threads = useQuietThreadShells();
+  // A thread is a conversation with a bot, so anything without one stays out of the list.
+  // `threads` itself stays whole: history, the palette and deep links still resolve a row.
+  const listedThreads = threads.filter((thread) => thread.botId != null);
   const routeRowThreadKey =
     routeThreadRef === null
       ? null
@@ -1194,7 +1202,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const botForThread = (thread: Pick<SidebarThreadSummary, "environmentId" | "botId">) =>
     thread.botId === undefined || thread.botId === null
       ? null
-      : (botsByKey.get(`${thread.environmentId}:${thread.botId}`) ?? null);
+      : (bots.byKey.get(`${thread.environmentId}:${thread.botId}`) ?? null);
   // Pinning from a row keeps rows in place while the menu is open.
   const projectScopeItems = useOrderWhileOpen(
     lookupProjectScopeItems,
@@ -1366,15 +1374,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     serverConfigs,
     connectedEnvironmentIds,
     optimisticDrop,
-    threads,
+    threads: listedThreads,
     delegatedUnderParent,
     routeRowThreadKey,
-    folderGroups: boringSidebarEnabled
-      ? scopedProjectGroups.length === 0
-        ? // An archived project keeps a folder for its active threads, below the rest.
-          [...scopeGroups, ...projectGroups.filter((project) => project.archived)]
-        : scopedProjectGroups
-      : null,
+    // A chat is a conversation with a bot, not work in a repo, so nothing here groups by project.
+    folderGroups: null,
     keepEmptyFolders: (group) =>
       scopedProjectGroups.length > 0 || (group.pinned && !group.archived),
   });
@@ -2960,6 +2964,19 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   );
   const showJumpHints = useThreadJumpHintsVisible(shouldShowJumpHintsNow);
 
+  const startChatWithBot = (botId: BotId) => {
+    if (isMobile) setOpenMobile(false);
+    void startNewThreadFromContext(
+      {
+        activeDraftThread: newThreadContext.activeDraftThread,
+        activeThread: newThreadContext.activeThread ?? undefined,
+        defaultProjectRef: newThreadContext.defaultProjectRef,
+        handleNewThread,
+      },
+      { botId },
+    );
+  };
+
   const handleNewThreadClick = (event?: ReactMouseEvent) => {
     if (
       boringSidebarEnabled ||
@@ -3002,7 +3019,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           <SidebarGroup className="z-[1]">
             <SidebarThreadHeader
               searchFieldRef={headerSearchRef}
-              hasProjects={projectGroups.length > 0}
+              hasProjects={false}
               projectScope={
                 <Combobox
                   items={projectScopeItems}
@@ -3189,6 +3206,16 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 </Combobox>
               }
               onNewProject={openAddProjectCommandPalette}
+              newChatMenu={
+                <SidebarNewChatMenu
+                  bots={bots.listed}
+                  onOpenBot={startChatWithBot}
+                  onAddBot={() => {
+                    if (isMobile) setOpenMobile(false);
+                    void router.navigate({ to: "/settings/bots" });
+                  }}
+                />
+              }
               onNewThread={handleNewThreadClick}
               newThreadDisabled={projects.length === 0}
               newThreadShortcutLabel={newThreadShortcutLabel}
@@ -3653,24 +3680,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           ) : null}
         </SidebarGroup>
 
-        {primaryEnvironmentId !== null && !isSearchingThreads ? (
-          <SidebarGroup role="presentation" className="shrink-0">
-            <SidebarTeamSection
-              environmentId={primaryEnvironmentId}
-              onOpenBot={(botId) => {
-                void startNewThreadFromContext(
-                  {
-                    activeDraftThread: newThreadContext.activeDraftThread,
-                    activeThread: newThreadContext.activeThread ?? undefined,
-                    defaultProjectRef: newThreadContext.defaultProjectRef,
-                    handleNewThread,
-                  },
-                  { botId },
-                );
-              }}
-            />
-          </SidebarGroup>
-        ) : null}
+        {primaryEnvironmentId !== null && !isSearchingThreads ? null : null}
       </SidebarContent>
       <SidebarChromeFooter />
     </>

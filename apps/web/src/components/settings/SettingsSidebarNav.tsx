@@ -21,6 +21,7 @@ import {
   Settings2Icon,
   ShieldCheckIcon,
   SmartphoneIcon,
+  UserRoundIcon,
   WrenchIcon,
   XIcon,
 } from "lucide-react";
@@ -88,6 +89,7 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/labs": FlaskConicalIcon,
   "/settings/about": InfoIcon,
   "/settings/archived": ArchiveIcon,
+  "/settings/bots": UserRoundIcon,
 };
 
 // Detail pages without a nav entry highlight the page that links to them.
