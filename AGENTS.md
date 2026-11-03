@@ -1,8 +1,10 @@
 # Botki
 
-Botki is a self-hosted night agent host: a Node WebSocket server that drives coding agents on a schedule and reports back. A fork of T3 Code, so the server, orchestration, and UI are upstream's; what we build is the nightly loop around it.
+Botki is a self-hosted host for **personal agents**: you add a bot, give it a role and a
+brief, and it becomes a chat that is yours — your machine, your model, your data. Bots are
+the product. Repositories are something a bot can reach, not what Botki is about.
 
-We are one owner on one machine, with one provider (Pi). No hosted account, no forge integration, no code editor. Upstream ships an app for people who live in their editor; we ship an app that does the work while they sleep.
+We are one owner on one machine, with one provider (Pi). No hosted account, no forge integration, no code editor. Upstream ships an app for people who live in their editor; we ship an app whose center is a list of bots you talk to.
 
 ## A note from the owner
 
@@ -12,29 +14,29 @@ Channel both "measure twice, cut once" and "yagni". Fight scope creep. Honor the
 
 This file is navigation, not a legal code. Think "good defaults", not "hard rules". The developer's preferences override anything here.
 
-Night agents work unattended, so this file also carries the rules that keep an unattended run from doing damage: the verification bar, the reuse bar, and the cut list.
+Unattended runs are the risk, so this file also carries the rules that keep one from doing damage: the verification bar, the reuse bar, and the cut list.
 
 ## A small glossary
 
-- **you** means the agent reading this file and changing Botki, usually a night agent.
+- **you** means the agent reading this file and changing Botki, usually an unattended run.
 - **I, me, owner, and maintainer** mean Adam. These are who you are talking to now.
 - **user** means a person using Botki to direct agents.
 - **agent** means a coding agent Botki runs. Depending on context, that may be you.
-- **bot** means a configured agent identity: a provider instance, a prompt, a schedule. Bots are the things a night runs.
-- **team** means the bots configured for one repo, and which one owns which slice.
-- **ask-assign** means handing a slice to a specific bot, by issue, rather than waiting for the routine to pick it up.
-- **hand-off** means the point where one bot's green PR becomes another bot's starting state.
+- **bot** means a persistent identity: a name, a role, and a brief, stored as a row and as `bots/<botId>/BRIEF.md`. A chat with a bot is a thread carrying its `botId`, and every turn in it answers as that bot.
+- **team** means the bots this owner has added.
+- **room** means one thread several bots share. Not built yet; it will replace a thread's single `botId` with participants.
 - **needs-you** means the queue of work that genuinely needs me, and the only screen I read in the morning.
-- **routine** means the nightly schedule: pick a spec'd issue, build, verify, open a PR.
-- **provider** means the agent harness Botki talks to. Ours is Pi; others stay in the tree because upstream maintains them, but nothing we ship may depend on them.
-- **slice** means one issue-sized unit of work that fits in one night and one PR.
+- **routine** means work a bot takes up on a schedule rather than on message. Scheduled runs exist upstream; wiring them to a bot is not built.
+- **provider** means the agent harness Botki talks to. Ours is Pi; others stay in the tree because upstream maintains them, but nothing we ship may depend on them. Only the Pi adapter carries a bot's brief today — see `docs/internals/adding-a-provider.md`.
+- **project** means a repository checkout. It is a workspace a bot may use, not the unit of the UI. Keep new features readable without one; do not make a feature require picking a repo. `projectId` is still required on a thread and the scratch project stands in for bot chats until it becomes optional.
+- **slice** means one issue-sized unit of work that fits in one unattended run and one PR.
 - **spec** means `specs/<issue>-<slug>.md`, a behavior description of one of our own features. See [specs/README.md](specs/README.md).
 
 ## The cut list (fork rule: never reintroduce)
 
-TS0 (#1) removes the areas below. They are to be gone, not disabled: dead code misleads a
-night agent, and upstream fixes there are never cherry-picked. **TS0 has not merged yet**, so
-several of these paths still exist on `main`. Read that as pending work, not permission: do
+TS0 (#1) removes the areas below. They are to be gone, not disabled: dead code misleads an
+unattended agent, and upstream fixes there are never cherry-picked. **TS0 has not merged yet**,
+so several of these paths still exist on `main`. Read that as pending work, not permission: do
 not build on them, do not add imports of them, and never restore one to make a build pass.
 
 - **Account auth**: Clerk and T3 Connect, `apps/web/src/cloud/`, `apps/server/src/cloud/`, `infra/relay/`, desktop Clerk token stores. Login is to a server address on loopback.
@@ -73,11 +75,13 @@ New code matches the idioms around it, per surface:
 - **Client mutations** use `createEnvironmentRpcCommand`. Add protected methods to `CLIENT_GUARDED_RPC_SCOPES` in contracts and use the command's `permissionAtom` for UI availability. Grants are checked at execution against the destination environment; the server stays authoritative. Keep raw RPC clients inside `rpc/`, and extend the permission behavior tests when adding a protected method.
 - **Performance is the product.** No continuously repainting animations; they peg the GPU on high-refresh displays. Watch data sent over websockets, css animations, and lists that are hard to render.
 
-## Night runs
+## Unattended runs
+
+The loop may be scheduled or asked for by hand; the discipline is the same either way.
 
 - One issue is one PR, and a PR per task. Do not batch slices.
 - Commit prefix: `night(<slice>): ...`, e.g. `night(meta): add a spec`.
-- **Never force-push.** A night agent pushes commits and never rewrites shared history.
+- **Never force-push.** An unattended agent pushes commits and never rewrites shared history.
 - Every PR body ends with a run-report: **what you ran** (exact commands), **what passed** (counts, not vibes), **what you did not touch** (the files you deliberately left alone).
 - A feature we add over t3code ships or updates its `specs/` file in the same PR; cut PRs, bugfixes, and infra touch nothing there.
 - Merge-readiness is proved in the PR body's Requirements status section, never a committed file. Captures are uploaded to GitHub, never committed.
@@ -96,7 +100,7 @@ New code matches the idioms around it, per surface:
 ## The three ways to hurt yourself
 
 1. **Killing by pattern.** Never `pkill -f`, `pgrep | kill`, or `kill` a PID you found by matching a name, path, or worktree string. Your own agent process has this worktree's path in its argv, and this machine runs several other dev servers at once. Kill only a PID you captured at spawn, or the owner of your port from `ss -H -ltnp` after confirming `/proc/<pid>/cwd` is your worktree.
-2. **Writing to the live install.** `~/.t3/userdata` is the owner's real Botki database, and it is what the nightly routine runs against. Reading it and copying from it are fine, and a good way to get real test data (see Test data). Never start a server against it, never open it read-write, never clean it up.
+2. **Writing to the live install.** `~/.t3/userdata` is the owner's real Botki database, and it is what scheduled bot runs go against. Reading it and copying from it are fine, and a good way to get real test data (see Test data). Never start a server against it, never open it read-write, never clean it up.
 3. **Baking in origins.** Never set `VITE_HTTP_URL` or `VITE_WS_URL` for dev. Dev is single-origin and Vite proxies `/api`, `/ws`, `/oauth`, and `/.well-known`. Setting them bakes localhost into the bundle and silently breaks every remote browser.
 
 ## Test data
@@ -168,7 +172,7 @@ Architecture and its constraints: `docs/internals/overview.md`. Glossary: `docs/
 
 ## Where code lives
 
-- `apps/server` - WebSocket, orchestration, providers, checkpointing, scheduled tasks, MCP. Where most night work lands.
+- `apps/server` - WebSocket, orchestration, providers, checkpointing, scheduled tasks, MCP. Where most of our work lands.
 - `apps/web` - React/Vite UI. `apps/desktop` wraps it; `apps/mobile` is React Native.
 - `packages/contracts` - Effect/Schema contracts plus small derived helpers.
 - `packages/shared` - shared runtime utils, subpath exports, no barrel.

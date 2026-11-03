@@ -1,16 +1,21 @@
 # Botki
 
-Botki is a self-hosted team of coding agents that works on your repositories while you
-sleep. You point it at a repo, tell each bot which slice of the backlog it owns, and it
-builds, verifies, and opens a pull request overnight — so the only thing you read in the
-morning is the queue of work that genuinely needs you.
+Botki is a self-hosted team of personal agents that are yours. You add a bot, give it a
+job — a role and a brief in your own words — and it becomes a chat you can talk to from any
+device, on your machine, with the model you chose. Not a prompt you paste each time: a bot
+keeps its threads, its brief, and what it learns.
+
+It is the open-source version of Grok bots, Claude Duet, and OpenAI Dots. Same idea — bots
+as the thing you talk to, rather than a chat window you reopen — minus the hosted account,
+the fixed model, and the company holding your conversations. Your machine, your providers,
+your files.
 
 It is a fork of [t3code](https://github.com/pingdotgg/t3code) by [T3 Tools](https://t3.gg).
 What survived the fork is the hard part: the event-sourced orchestrator, the provider
-adapters, checkpointing, and the web and desktop clients. What we removed was the parts
-of a developer's editor that a night shift does not need — account auth, hosted relay,
-guest shares, forge and pull-request integrations, the code editor, and telemetry.
-Attribution is in [NOTICE](./NOTICE); the license is [MIT](./LICENSE).
+adapters, checkpointing, and the web and desktop clients. What we removed was the parts of
+a developer's editor that personal agents do not need — account auth, hosted relay, guest
+shares, forge and pull-request integrations, the code editor, and telemetry. Attribution is
+in [NOTICE](./NOTICE); the license is [MIT](./LICENSE).
 
 <!-- Screenshot placeholder: needs-you queue. Add docs/assets/botki-needs-you.png
      and replace this comment with an image once the queue screen has a real look. -->
@@ -68,17 +73,24 @@ own. Install and authenticate at least one before your first run:
 | Codex       | [Codex CLI](https://developers.openai.com/codex/cli)        | `codex login`         |
 | OpenCode    | [OpenCode](https://opencode.ai)                             | `opencode auth login` |
 
-Pi is the reference provider: it is what the tests, the fixtures, and the docs assume.
-The others stay in the tree because upstream maintains their adapters, but nothing we
-ship depends on them.
+Pi is the reference provider: it is what the tests, the fixtures, and the docs assume, and
+today the only adapter that carries a bot's brief into its turns. The others stay in the
+tree because upstream maintains their adapters — a bot on one of them currently runs as the
+plain assistant. Making briefs work everywhere is open work, not a limitation of the design.
 
-## How a night works
+## How bots work
 
-One issue becomes one slice, one slice becomes one night and one pull request. A bot picks
-up a spec'd issue, does the work, verifies it against the acceptance checklist written for
-that slice, and opens a PR with a run report: what it ran, what passed, and what it
-deliberately did not touch. Work it cannot finish becomes a draft PR with the blocker in
-your queue rather than silence.
+A bot is a name, a role, and a brief — the job you wrote for it, in your words. Every
+conversation you start with that bot answers as it: same role, same brief, every turn,
+without you restating anything. Its brief also lives on disk as a plain markdown file, so
+you can version it, edit it from your editor, or let an agent improve it.
+
+A chat with a bot is a thread, which means it already gets everything the app does: history,
+provider and model choice per thread, permission modes, checkpoints, and remote access from
+your phone. Nothing about a bot is a special case hidden behind a chat UI.
+
+Bots are early. Right now you talk to one at a time; bots that talk to each other, and rooms
+where several of them work the same thread together, are the next thing.
 
 The details that keep an unattended run from doing damage — the verification bar, the
 reuse bar, and never killing a process by name pattern — are in
@@ -102,5 +114,5 @@ and read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a PR.
 
 ## Status
 
-Early. The nightly loop is the product and it is where the bugs are. Expect to read the
-run reports.
+Early, and moving. The bot is the product and it is where the bugs are. Expect the sidebar
+to change shape as bots become the main thing you see rather than a section of it.
