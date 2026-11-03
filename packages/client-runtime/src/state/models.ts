@@ -10,6 +10,7 @@ import type {
   OrchestrationV2ProviderFailureClass,
   OrchestrationV2ThreadProjection,
   OrchestrationV2ThreadShell,
+  BotId,
   PlanId,
   ProjectId,
   ProviderInstanceId,
@@ -150,6 +151,8 @@ export interface EnvironmentThreadShell {
   readonly linkOrigin: OrchestrationV2ThreadShell["linkOrigin"] | null;
   /** The thread in a linked environment that delegated this one, if one did. */
   readonly delegatedFrom: OrchestrationV2ThreadShell["delegatedFrom"] | null;
+  /** The bot a chat belongs to; absent on plain threads and on everything predating bots. */
+  readonly botId: BotId | null;
   readonly activeProviderThreadId: OrchestrationV2ThreadShell["activeProviderThreadId"];
   readonly latestRun: ThreadRunSummary | null;
   readonly runtime: ThreadRuntimeSummary | null;
@@ -298,6 +301,7 @@ export function presentThreadShell(
     forkedFrom: thread.forkedFrom,
     linkOrigin: thread.linkOrigin ?? null,
     delegatedFrom: thread.delegatedFrom ?? null,
+    botId: thread.botId ?? null,
     activeProviderThreadId: thread.activeProviderThreadId,
     latestRun,
     runtime,
