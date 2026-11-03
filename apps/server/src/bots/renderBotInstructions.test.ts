@@ -15,17 +15,17 @@ const viki = {
   brief: "You fix grammar. Reply ONLY with the corrected text. Never explain.",
 };
 
-it("renders the brief verbatim with a trailing newline", () => {
+it("renders the canonical brief: role line, then the brief verbatim", () => {
   assert.equal(
     renderBrief(viki),
-    "You fix grammar. Reply ONLY with the corrected text. Never explain.\n",
+    "# Viki (proofreader)\n\nYou fix grammar. Reply ONLY with the corrected text. Never explain.\n",
   );
 });
 
 it("trims the brief rather than reflowing it", () => {
   assert.equal(
     renderBrief({ ...viki, brief: "  Keep   my   spacing  \n\n" }),
-    "Keep   my   spacing\n",
+    "# Viki (proofreader)\n\nKeep   my   spacing\n",
   );
 });
 
@@ -41,12 +41,19 @@ it("renders the exact preamble a bot turn carries", () => {
   );
 });
 
-it("keeps the identity header out of the canonical brief", () => {
-  // Editing BRIEF.md by hand and editing the form must produce the same bytes, so the header
-  // the model sees can never leak into the file the owner owns.
+it("re-renders the role line when the bot is renamed", () => {
+  // The file is the export, so an edit that changes name or role must not leave the old one
+  // standing as the portable copy.
+  assert.include(
+    renderBrief({ ...viki, name: "Viki the Proofreader", role: "copy editor" }),
+    "# Viki the Proofreader (copy editor)",
+  );
+});
+
+it("keeps the prompt-only identity sentence out of the canonical brief", () => {
   const brief = renderBrief(viki);
   assert.notInclude(brief, "botki_bot_instructions");
-  assert.notInclude(brief, "You are the");
+  assert.notInclude(brief, "applies to every turn");
 });
 
 it("names the folder after the id, not the name", () => {

@@ -9,17 +9,17 @@ export interface BotBriefSource {
 }
 
 /**
- * The brief the owner edits — what `BRIEF.md` holds verbatim. Plain markdown, no frontmatter:
- * the DB row is authoritative and this file is its portable export, so nothing in the file may
- * carry a transport field the row does not already have.
+ * `BRIEF.md`: one role line, then the brief the owner wrote, verbatim. The DB row is
+ * authoritative and this file is its portable export, so the export names the bot it came from
+ * and carries no field the row lacks. Re-rendered on every edit, role line included.
  */
 export function renderBrief(bot: BotBriefSource): string {
-  return `${bot.brief.trim()}\n`;
+  return `# ${bot.name} (${bot.role})\n\n${bot.brief.trim()}\n`;
 }
 
 /**
- * The block a bot turn's prompt gains. The identity header tells the model whose instructions
- * these are; it is deliberately absent from `BRIEF.md`, so the file stays what the owner wrote.
+ * The block a bot turn's prompt gains, composed from the row rather than the file so an unread
+ * or hand-edited export cannot change what a turn is told.
  */
 export function renderBotInstructions(bot: BotBriefSource): string {
   return [

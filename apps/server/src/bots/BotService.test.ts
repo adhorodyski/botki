@@ -62,15 +62,25 @@ it.layer(Layer.mergeAll(NodeServices.layer, layerTest))("BotService", (it) => {
       assert.equal(yield* fileSystem.readFileString(target), renderBrief(created));
 
       yield* bots.mutate({ type: "bot.update", id: created.id, brief: "Reply in one clause." });
-      assert.equal(yield* fileSystem.readFileString(target), "Reply in one clause.\n");
+      assert.equal(
+        yield* fileSystem.readFileString(target),
+        "# Viki (proofreader)\n\nReply in one clause.\n",
+      );
 
-      // A rename must not move the folder: the id, not the name, owns the path.
+      // A rename keeps the folder, since the id owns the path, but re-renders the file so the
+      // export never names a bot the row no longer describes.
       yield* bots.mutate({ type: "bot.update", id: created.id, name: "Proofreader" });
-      assert.equal(yield* fileSystem.readFileString(target), "Reply in one clause.\n");
+      assert.equal(
+        yield* fileSystem.readFileString(target),
+        "# Proofreader (proofreader)\n\nReply in one clause.\n",
+      );
 
       yield* bots.mutate({ type: "bot.delete", id: created.id });
       // v0 conservatism: the row goes, the owner's file stays.
-      assert.equal(yield* fileSystem.readFileString(target), "Reply in one clause.\n");
+      assert.equal(
+        yield* fileSystem.readFileString(target),
+        "# Proofreader (proofreader)\n\nReply in one clause.\n",
+      );
     }),
   );
 
