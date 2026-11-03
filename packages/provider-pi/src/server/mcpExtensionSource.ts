@@ -491,10 +491,14 @@ export default async function t3McpExtension(pi: ExtensionAPI) {
       if (botInstructions !== undefined) sections[BOT_INSTRUCTIONS_SECTION] = botInstructions;
       return undefined;
     }
-    const appended = botInstructions === undefined
-      ? ORCHESTRATION_INSTRUCTIONS
-      : "<" + BOT_INSTRUCTIONS_SECTION + ">\\n" + botInstructions + "\\n</" + BOT_INSTRUCTIONS_SECTION + ">\\n\\n" + ORCHESTRATION_INSTRUCTIONS;
-    return { systemPrompt: event.systemPrompt + "\\n\\n" + appended };
+    // The block carries its own tags, so it appends verbatim on Pi builds without sections.
+    return {
+      systemPrompt:
+        event.systemPrompt +
+        "\\n\\n" +
+        (botInstructions === undefined ? "" : botInstructions + "\\n\\n") +
+        ORCHESTRATION_INSTRUCTIONS,
+    };
   });
 }
 `;

@@ -4,6 +4,7 @@ import { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts"
 import {
   T3_MCP_BEARER_ENV,
   T3_MCP_URL_ENV,
+  T3_PI_BOT_INSTRUCTIONS_ENV,
   T3_PI_RUNTIME_MODE_ENV,
   T3_PI_MCP_EXTENSION_PATH_ENV,
 } from "./mcpExtensionSource.ts";
@@ -84,6 +85,39 @@ describe("pi T3 MCP injection", () => {
       permissionOnly.env[T3_PI_MCP_EXTENSION_PATH_ENV],
       "/tmp/cache/pi-t3-mcp-extension.ts",
     );
+  });
+
+  it("passes a bot's staged instructions file only to a session that has the T3 extension", () => {
+    const withBot = buildPiRpcLaunch({
+      launchArgs: [],
+      environment: { PATH: "/usr/bin" },
+      mcpSession,
+      extensionPath: "/tmp/cache/pi-t3-mcp-extension.ts",
+      runtimeMode: "approval-required",
+      botInstructionsPath: "/state/bot-instructions/viki.md",
+    });
+    assert.equal(withBot.env[T3_PI_BOT_INSTRUCTIONS_ENV], "/state/bot-instructions/viki.md");
+    // A plain thread launches with the same args and no instructions env at all, so the
+    // extension cannot see a path and its prompt stays exactly as it was.
+    const plain = buildPiRpcLaunch({
+      launchArgs: [],
+      environment: { PATH: "/usr/bin" },
+      mcpSession,
+      extensionPath: "/tmp/cache/pi-t3-mcp-extension.ts",
+      runtimeMode: "approval-required",
+    });
+    assert.isUndefined(plain.env[T3_PI_BOT_INSTRUCTIONS_ENV]);
+    assert.deepEqual(withBot.args, plain.args);
+    // With extensions disabled nothing reads the file, so the env must not carry it either.
+    const noExtensions = buildPiRpcLaunch({
+      launchArgs: [],
+      environment: { PATH: "/usr/bin" },
+      extensionPath: "/tmp/cache/pi-t3-mcp-extension.ts",
+      mcpSession: undefined,
+      disableExtensions: true,
+      botInstructionsPath: "/state/bot-instructions/viki.md",
+    });
+    assert.isUndefined(noExtensions.env[T3_PI_BOT_INSTRUCTIONS_ENV]);
   });
 
   it("forces tools and user extensions off for unattended text generation", () => {

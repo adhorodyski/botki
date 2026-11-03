@@ -39,7 +39,7 @@ export function briefRelativePath(botId: BotId): string {
   return `${botRelativeDirectory(botId)}/BRIEF.md`;
 }
 
-/** Per-turn copy the provider process reads, staged fresh before every turn. */
+/** Per-turn copy a provider process reads. One bot's threads stage the same bytes. */
 export function instructionsRelativePath(botId: BotId): string {
   return `bot-instructions/${botId}.md`;
 }
