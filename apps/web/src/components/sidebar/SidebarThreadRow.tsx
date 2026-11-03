@@ -1092,13 +1092,20 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         <EnvironmentMachineIcon aria-hidden kind={props.environmentMachine} className="size-3.5" />
       </span>
     ) : null;
-  const diff = latestRunDiff(thread);
-  // Only the trailing icons would remain, so the row moves them to the title line instead.
+  const diff = props.bot ? null : latestRunDiff(thread);
+  // A chat with a bot shows no workspace: its branch, worktree, machine and diff are not
+  // things you are deciding about, and the bot's role already owns the second line.
   const metaLineEmpty =
-    !thread.branch && !showsScratchMachine && diff === null && runningTerminalIds.length === 0;
+    props.bot == null &&
+    !thread.branch &&
+    !showsScratchMachine &&
+    diff === null &&
+    runningTerminalIds.length === 0;
   const metaLine = metaLineEmpty ? null : (
     <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-secondary-label text-xs">
-      {thread.branch ? (
+      {props.bot ? (
+        <span className="min-w-0 flex-1 truncate">{props.bot.role}</span>
+      ) : thread.branch ? (
         <>
           <ThreadWorktreeIndicator thread={thread} />
           <span className="flex min-w-0 flex-1">
@@ -1396,11 +1403,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {/* Left of the status slot, the pin would slide when hover swaps the
                 label for the wider row controls. */}
               {pinIndicator}
-              {props.bot ? (
-                <span className="min-w-0 flex-1 truncate font-normal text-secondary-label text-xs">
-                  {props.bot.role}
-                </span>
-              ) : props.projectDisplayName ? (
+              {props.projectDisplayName && props.bot === null ? (
                 <span
                   className={cn("min-w-0 flex-1 truncate font-normal text-secondary-label text-xs")}
                 >
