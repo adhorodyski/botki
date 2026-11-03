@@ -7,7 +7,12 @@ import * as Path from "effect/Path";
 import * as SqlClient from "effect/sql/SqlClient";
 import { SqlError, classifySqliteError } from "effect/sql/SqlError";
 
+import { BotId, CommandId, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+
 import { toPersistenceSqlError } from "../persistence/Errors.ts";
+import { OrchestratorDispatchError } from "./Orchestrator.ts";
+import * as RuntimePolicy from "./RuntimePolicy.ts";
+import { failureDetail, ThreadLaunchError } from "./ThreadLaunchService.ts";
 import { userFacingDispatchErrorMessage } from "./UserFacingErrors.ts";
 
 describe("userFacingDispatchErrorMessage", () => {
@@ -79,5 +84,33 @@ describe("userFacingDispatchErrorMessage", () => {
     assert.include(message, "server could not complete this database request");
     assert.include(message, "server logs");
     assert.notInclude(message, "private-query-data");
+  });
+});
+
+// A refused bot turn has to name the provider, or the person reading it cannot act on it.
+describe("workspace preparation failures", () => {
+  it("keeps the provider's name through the launch and dispatch wrappers", () => {
+    const refusal = new RuntimePolicy.BotInstructionsUnsupportedError({
+      threadId: ThreadId.make("thread-bot-brief"),
+      botId: BotId.make("viki"),
+      providerInstanceId: ProviderInstanceId.make("devReplay"),
+      displayName: "Replay (dev)",
+    });
+    const detail = failureDetail(
+      new ThreadLaunchError({
+        operation: "release-run",
+        commandId: CommandId.make("command-bot-brief"),
+        projectId: ProjectId.make("project-bot-brief"),
+        cause: new OrchestratorDispatchError({
+          commandId: CommandId.make("command-bot-brief"),
+          commandType: "prepared-run.release",
+          cause: refusal,
+        }),
+      }),
+    );
+
+    assert.include(detail, "Replay (dev)");
+    assert.include(detail, "plain assistant");
+    assert.notInclude(detail, "Failed to dispatch orchestration command");
   });
 });

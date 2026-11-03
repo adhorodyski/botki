@@ -53,6 +53,7 @@ import type * as Orchestrator from "./Orchestrator.ts";
 import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 import { randomUuidV4 } from "@t3tools/provider-core/server/randomUuid";
 import { DispatchModeLimit } from "./DispatchModeLimit.ts";
+import { userFacingDispatchErrorMessage } from "./UserFacingErrors.ts";
 import * as ThreadManagement from "./ThreadManagementService.ts";
 
 export type ThreadLaunchWorkspaceStrategy =
@@ -195,10 +196,14 @@ export class ThreadLaunchService extends Context.Service<
 
 const isThreadLaunchError = Schema.is(ThreadLaunchError);
 
-function failureDetail(error: unknown): string {
+export function failureDetail(error: unknown): string {
   if (isThreadLaunchError(error)) {
     const cause = error.cause;
-    const detail = cause instanceof Error ? cause.message : String(cause);
+    // The dispatch wrapper's own text names a command, not the reason; unwrap it so a refusal
+    // that names a provider still reaches the person who has to pick a different one.
+    const detail =
+      userFacingDispatchErrorMessage(cause) ??
+      (cause instanceof Error ? cause.message : String(cause));
     return `Workspace preparation failed during ${error.operation.replaceAll("-", " ")}: ${detail}`;
   }
   return `Workspace preparation failed: ${error instanceof Error ? error.message : String(error)}`;
