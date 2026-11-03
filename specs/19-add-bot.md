@@ -12,9 +12,13 @@ renaming never moves a bot's folder.
 **Talking to one.** Clicking a teammate opens a new draft owned by that bot, with the project a
 plain _New thread_ would have used. Nothing is created until you send: the thread that appears
 in the normal thread list belongs to the bot, and every turn in it answers according to the
-brief. The bot's own words are in its threads, so the Team section is a way in, not a place
-where history lives. A bot's brief reaches its threads' turns and no others; threads you start
-normally are untouched by any bot, and stay exactly as they were.
+brief. A bot's brief reaches its threads' turns and no others; threads you start normally are
+untouched by any bot, and stay exactly as they were.
+
+The Team shelf below the thread list is temporary placement. The plan is that a bot _is_ a
+thread, so bots appear among the threads above rather than in a section of their own; the
+shelf stays only until that model lands, and nothing about storage or the brief depends on
+where the entry point lives.
 
 **Deleting.** Deleting asks first, and says what survives: the bot stops receiving new turns and
 its threads remain, but its folder and everything the owner or an agent wrote in it stays on
