@@ -432,6 +432,9 @@ export function buildLocalDraftThread(
     interactionMode: draftThread.interactionMode,
     branch: draftThread.branch,
     worktreePath: draftThread.worktreePath,
+    // A draft opened from a bot keeps that identity here too, so the chat pane can name the bot
+    // before the first send creates the real thread.
+    ...(draftThread.botId === undefined ? {} : { botId: draftThread.botId }),
     activeProviderThreadId: null,
     lineage: { rootThreadId: threadId, parentThreadId: null, relationshipToParent: null },
     forkedFrom: null,

@@ -12,7 +12,7 @@ import { discardComposerDraft } from "../lib/discardComposerDraft";
 import { requestCustomSnooze } from "./CustomSnoozeDialog";
 import { useAtomValue } from "@effect/atom-react";
 import * as Option from "effect/Option";
-import { Atom, AsyncResult } from "effect/reactivity";
+import { Atom } from "effect/reactivity";
 import * as Schema from "effect/Schema";
 import {
   DndContext,
@@ -151,7 +151,7 @@ import {
   useServerConfigs,
   useQuietThreadShells,
 } from "../state/entities";
-import { botsList } from "../state/bots";
+import { botsByEnvironmentAtom, botForThread } from "../state/bots";
 import { environmentPresentations } from "../state/presentation";
 import { primaryServerKeybindingsAtom } from "../state/server";
 import { environmentProjects } from "../state/projects";
@@ -320,23 +320,6 @@ const sidebarProviderEntriesAtom = Atom.make((get) => {
   }
   return !changed && previous !== null ? previous : next;
 }).pipe(Atom.withLabel("sidebar-provider-entries"));
-
-// A thread row names the bot it belongs to, so bots are read per environment alongside them.
-type SidebarBot = { readonly botId: BotId; readonly name: string; readonly role: string };
-
-const sidebarBotsAtom = Atom.make((get) => {
-  const byKey = new Map<string, SidebarBot>();
-  const listed: SidebarBot[] = [];
-  for (const [environmentId] of get(environmentPresentations.serverConfigsAtom)) {
-    const result = get(botsList({ environmentId, input: {} }));
-    for (const bot of AsyncResult.getOrElse(result, () => null)?.bots ?? []) {
-      const entry = { botId: bot.id, name: bot.name, role: bot.role };
-      byKey.set(`${environmentId}:${bot.id}`, entry);
-      listed.push(entry);
-    }
-  }
-  return { byKey, listed: listed.toSorted((a, b) => a.name.localeCompare(b.name)) };
-}).pipe(Atom.withLabel("sidebar-bots"));
 
 const EMPTY_PROVIDER_ENTRIES: ReadonlyMap<string, SidebarProviderEntry> = new Map();
 const EMPTY_THREADS: readonly EnvironmentThreadShell[] = [];
@@ -840,7 +823,7 @@ function useSidebarLookups() {
   const environments = useEnvironmentIdentities();
   const serverConfigs = useServerConfigs();
   const providerEntriesByEnvironment = useAtomValue(sidebarProviderEntriesAtom);
-  const bots = useAtomValue(sidebarBotsAtom);
+  const bots = useAtomValue(botsByEnvironmentAtom);
   const projectGroups = useSidebarProjectGroups();
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
@@ -1199,10 +1182,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     }
     return environmentLabelById.get(thread.environmentId) ?? null;
   };
-  const botForThread = (thread: Pick<SidebarThreadSummary, "environmentId" | "botId">) =>
-    thread.botId === undefined || thread.botId === null
-      ? null
-      : (bots.byKey.get(`${thread.environmentId}:${thread.botId}`) ?? null);
+  const botForThreadRow = (thread: Pick<SidebarThreadSummary, "environmentId" | "botId">) =>
+    botForThread(bots, thread);
   // Pinning from a row keeps rows in place while the menu is open.
   const projectScopeItems = useOrderWhileOpen(
     lookupProjectScopeItems,
@@ -3267,7 +3248,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         isSettled={settledThreadKeys.has(threadKey)}
                         key={threadKey}
                         thread={thread}
-                        bot={botForThread(thread)}
+                        bot={botForThreadRow(thread)}
                         project={
                           projectByKey.get(`${thread.environmentId}:${thread.projectId}`) ?? null
                         }
@@ -3426,7 +3407,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               environmentMachineById.get(thread.environmentId) ?? "server"
                             }
                             scratchMachineLabel={scratchMachineLabelFor(thread)}
-                            bot={botForThread(thread)}
+                            bot={botForThreadRow(thread)}
                             project={
                               projectByKey.get(`${thread.environmentId}:${thread.projectId}`) ??
                               null
