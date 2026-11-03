@@ -10,6 +10,7 @@ import {
   T3_MCP_URL_ENV,
   T3_PI_RUNTIME_MODE_ENV,
   T3_PI_MCP_EXTENSION_PATH_ENV,
+  T3_PI_BOT_INSTRUCTIONS_ENV,
 } from "./mcpExtensionSource.ts";
 
 const RESERVED_PI_LAUNCH_ARGUMENTS = new Set([
@@ -247,6 +248,8 @@ export function buildPiRpcLaunch(input: {
   readonly disableExtensions?: boolean;
   readonly disableTools?: boolean;
   readonly runtimeMode?: "approval-required" | "auto-accept-edits" | "auto" | "full-access";
+  /** File a bot thread's session reads for its instructions; absent on plain threads. */
+  readonly botInstructionsPath?: string | undefined;
 }): {
   readonly args: ReadonlyArray<string>;
   readonly env: NodeJS.ProcessEnv;
@@ -297,6 +300,10 @@ export function buildPiRpcLaunch(input: {
             [T3_PI_RUNTIME_MODE_ENV]:
               input.runtimeMode === "auto" ? "approval-required" : input.runtimeMode,
           }
+        : {}),
+      // Only the T3 extension reads this, and only for a bot thread.
+      ...(hasT3Extension && input.botInstructionsPath !== undefined
+        ? { [T3_PI_BOT_INSTRUCTIONS_ENV]: input.botInstructionsPath }
         : {}),
       ...(hasT3Mcp && input.mcpSession !== undefined
         ? {

@@ -7,6 +7,9 @@ export const T3_MCP_URL_ENV = "T3_MCP_URL";
 export const T3_MCP_BEARER_ENV = "T3_MCP_BEARER_TOKEN";
 export const T3_PI_RUNTIME_MODE_ENV = "T3_PI_RUNTIME_MODE";
 export const T3_PI_MCP_EXTENSION_PATH_ENV = "T3_PI_MCP_EXTENSION_PATH";
+export const T3_PI_BOT_INSTRUCTIONS_ENV = "T3_PI_BOT_INSTRUCTIONS_FILE";
+// Pi rewrites this section per turn, so an edited brief lands on the next turn.
+const BOT_INSTRUCTIONS_SECTION_NAME = "bot_instructions";
 
 // These tools trigger file-change approvals, bypassed by Auto-accept edits.
 export const PI_FILE_CHANGE_TOOLS = ["edit", "write"] as const;
@@ -21,6 +24,8 @@ const URL_ENV = ${JSON.stringify(T3_MCP_URL_ENV)};
 const TOKEN_ENV = ${JSON.stringify(T3_MCP_BEARER_ENV)};
 const RUNTIME_MODE_ENV = ${JSON.stringify(T3_PI_RUNTIME_MODE_ENV)};
 const EXTENSION_PATH_ENV = ${JSON.stringify(T3_PI_MCP_EXTENSION_PATH_ENV)};
+const BOT_INSTRUCTIONS_ENV = ${JSON.stringify(T3_PI_BOT_INSTRUCTIONS_ENV)};
+const BOT_INSTRUCTIONS_SECTION = ${JSON.stringify(BOT_INSTRUCTIONS_SECTION_NAME)};
 const ORCHESTRATION_INSTRUCTIONS = ${JSON.stringify(T3_CODE_ORCHESTRATION_INSTRUCTIONS.trim())};
 const PROTOCOL = "2025-06-18";
 const READ_ONLY_TOOLS = new Set(["read", "grep", "find", "ls"]);
@@ -47,6 +52,18 @@ type McpTool = {
 function env(name: string): string | undefined {
   const value = process.env[name];
   return value && value.length > 0 ? value : undefined;
+}
+
+// Bot threads only: the file holds the block, and is gone once the bot is deleted.
+async function readBotInstructions(): Promise<string | undefined> {
+  const file = env(BOT_INSTRUCTIONS_ENV);
+  if (file === undefined) return undefined;
+  try {
+    const text = (await NodeFSP.readFile(file, "utf8")).trim();
+    return text.length > 0 ? text : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function runtimeMode(): RuntimeMode {
@@ -463,15 +480,25 @@ export default async function t3McpExtension(pi: ExtensionAPI) {
   });
 
   // Keep guidance in the system prompt so leading slash commands still expand.
-  pi.on("before_agent_start", (event, ctx) => {
+  pi.on("before_agent_start", async (event, ctx) => {
     reconcileDiscovery(ctx);
+    // Read per turn so an edited brief reaches the next turn without restarting the session.
+    const botInstructions = await readBotInstructions();
     const sections = event.systemPromptOptions?.sections;
     if (sections && typeof sections === "object" && event.systemPromptOptions?.forceSystemPrompt === undefined) {
       // A full prompt override bypasses Pi's later section rendering.
       sections.t3_code_orchestration = ORCHESTRATION_INSTRUCTIONS;
+      if (botInstructions !== undefined) sections[BOT_INSTRUCTIONS_SECTION] = botInstructions;
       return undefined;
     }
-    return { systemPrompt: event.systemPrompt + "\\n\\n" + ORCHESTRATION_INSTRUCTIONS };
+    // The block carries its own tags, so it appends verbatim on Pi builds without sections.
+    return {
+      systemPrompt:
+        event.systemPrompt +
+        "\\n\\n" +
+        (botInstructions === undefined ? "" : botInstructions + "\\n\\n") +
+        ORCHESTRATION_INSTRUCTIONS,
+    };
   });
 }
 `;

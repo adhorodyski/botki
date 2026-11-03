@@ -80,6 +80,88 @@ describe("Pi orchestration prompt section", () => {
   });
 });
 
+describe("Pi bot instructions", () => {
+  // A staged instructions file is the whole interface between Botki and this extension.
+  const block = [
+    "<botki_bot_instructions>",
+    'You are the "Viki" bot (proofreader). Your brief lives in bots/viki/BRIEF.md and applies to every turn of this thread.',
+    "You fix grammar. Reply ONLY with the corrected text. Never explain.",
+    "</botki_bot_instructions>",
+  ].join("\n");
+  const ctx = { ui: { notify: assert.fail } };
+  const startTurn = async (bridge: Awaited<ReturnType<typeof loadMcpBridge>>, event: unknown) =>
+    await bridge.handlers.get("before_agent_start")!(event as never, ctx);
+
+  async function withBlockFile(run: (file: string) => Promise<void>) {
+    const dir = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-bot-instructions-"));
+    const file = NodePath.join(dir, "viki.md");
+    await NodeFSP.writeFile(file, block, "utf8");
+    try {
+      await run(file);
+    } finally {
+      await NodeFSP.rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("leaves a thread with no bot byte-identical, with and without prompt sections", async () => {
+    for (const modern of [false, true]) {
+      const event = { systemPrompt: "base", ...(modern ? { systemPromptOptions: {} } : {}) };
+      const noFile = await startTurn(await loadMcpBridge({ modern }), event);
+      const missingFile = await startTurn(
+        await loadMcpBridge({ modern, botInstructionsFile: "/fixture/absent.md" }),
+        event,
+      );
+      // Unset and unreadable must both yield exactly the pre-bot prompt, so the null path is
+      // provably untouched rather than merely empty-looking.
+      assert.deepEqual(missingFile, noFile);
+      assert.isTrue(noFile?.systemPrompt.startsWith("base\n\n"));
+      assert.notInclude(noFile?.systemPrompt ?? "", "botki_bot_instructions");
+    }
+  });
+
+  it("adds the block as a prompt section where Pi renders sections", async () =>
+    withBlockFile(async (file) => {
+      const sections: Record<string, string> = {};
+      const bridge = await loadMcpBridge({ modern: true, botInstructionsFile: file });
+      const result = await startTurn(bridge, {
+        systemPrompt: "base",
+        systemPromptOptions: { sections },
+      });
+      assert.isUndefined(result);
+      assert.equal(sections.bot_instructions, block);
+      assert.include(sections.t3_code_orchestration, "orchestrator_capabilities");
+    }));
+
+  it("appends the block verbatim where Pi has no prompt sections", async () =>
+    withBlockFile(async (file) => {
+      const bridge = await loadMcpBridge({ modern: false, botInstructionsFile: file });
+      const result = await startTurn(bridge, { systemPrompt: "base" });
+      assert.isTrue(result?.systemPrompt.startsWith(`base\n\n${block}\n\n`));
+      assert.include(result?.systemPrompt ?? "", "orchestrator_capabilities");
+    }));
+
+  it("re-reads the file each turn, so an edited brief needs no session restart", async () =>
+    withBlockFile(async (file) => {
+      const bridge = await loadMcpBridge({ modern: true, botInstructionsFile: file });
+      const sections: Record<string, string> = {};
+      await startTurn(bridge, { systemPrompt: "base", systemPromptOptions: { sections } });
+      assert.equal(sections.bot_instructions, block);
+      await NodeFSP.writeFile(file, `${block}\n\nAlso reply in one clause.`, "utf8");
+      await startTurn(bridge, { systemPrompt: "base", systemPromptOptions: { sections } });
+      assert.include(sections.bot_instructions, "Also reply in one clause.");
+    }));
+
+  it("drops the block when the file is gone, so a deleted bot leaves its thread running", async () =>
+    withBlockFile(async (file) => {
+      const bridge = await loadMcpBridge({ modern: true, botInstructionsFile: file });
+      await NodeFSP.rm(file);
+      const sections: Record<string, string> = {};
+      await startTurn(bridge, { systemPrompt: "base", systemPromptOptions: { sections } });
+      assert.notProperty(sections, "bot_instructions");
+      assert.include(sections.t3_code_orchestration, "orchestrator_capabilities");
+    }));
+});
+
 describe("Pi project trust", () => {
   it.each([
     { name: "a trusted folder", trusted: true, argv: [], notices: 0 },

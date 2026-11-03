@@ -450,13 +450,14 @@ const openRuntime = Effect.fnUntraced(function* (
   providerSessionId = SESSION_ID,
   forkFake?: FakePi,
   continuationRequests?: PiAdapterV2Options["continuationRequests"],
+  policy = runtimePolicy,
 ) {
   const adapter = yield* makeAdapter(fake, "", forkFake, continuationRequests);
   const runtime = yield* adapter.openSession({
     threadId,
     providerSessionId,
     modelSelection: modelSelection(model),
-    runtimePolicy,
+    runtimePolicy: policy,
   });
   const emitted = yield* Queue.unbounded<ProviderAdapter.ProviderAdapterV2Event>();
   yield* runtime.events.pipe(
@@ -1585,6 +1586,33 @@ describe("PiAdapterV2", () => {
       assert.equal(spawn.env.T3_MCP_URL, "http://127.0.0.1:43123/mcp");
       assert.equal(spawn.env.T3_MCP_BEARER_TOKEN, "secret-pi-token");
       assert.equal(spawn.env.T3_PI_RUNTIME_MODE, "full-access");
+      // A thread with no bot launches with no instructions env at all, so the extension has
+      // nothing to read and the prompt stays exactly as it was before bots existed.
+      assert.isUndefined(spawn.env.T3_PI_BOT_INSTRUCTIONS_FILE);
+    }).pipe(Effect.scoped, Effect.provide(layerTest)),
+  );
+
+  it.effect("hands a bot thread's staged instructions file to the process it spawns", () =>
+    Effect.gen(function* () {
+      const fake = yield* makeFakePi;
+      yield* openRuntime(
+        fake,
+        "default",
+        THREAD_ID,
+        SESSION_ID,
+        undefined,
+        undefined,
+        ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          cwd: null,
+          botInstructionsPath: "/state/bot-instructions/viki.md",
+        }),
+      );
+      assert.equal(
+        fake.lastSpawn().env.T3_PI_BOT_INSTRUCTIONS_FILE,
+        "/state/bot-instructions/viki.md",
+      );
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 

@@ -218,6 +218,7 @@ function SidebarProviderStack(props: {
 
 function SidebarThreadTooltip({
   thread,
+  bot,
   project,
   projectDisplayName,
   environmentLabel,
@@ -232,6 +233,7 @@ function SidebarThreadTooltip({
   terminalProcessCount,
 }: {
   thread: SidebarThreadSummary;
+  bot: { readonly name: string; readonly role: string } | null | undefined;
   project: ProjectFaviconProject | null;
   projectDisplayName: string | null;
   environmentLabel: string | null;
@@ -254,8 +256,10 @@ function SidebarThreadTooltip({
     .map((instanceId) => providerEntryByInstanceId.get(instanceId)?.displayName ?? instanceId);
   return (
     <ThreadHoverCardPopup side="right" align="start" sideOffset={4}>
-      <ThreadHoverCard title={thread.title}>
-        {projectDisplayName ? (
+      <ThreadHoverCard title={bot?.name ?? thread.title}>
+        {bot ? (
+          <div className="min-w-0 truncate text-foreground/75">{bot.role}</div>
+        ) : projectDisplayName ? (
           <div className="flex min-w-0 items-center gap-2">
             {project ? <ProjectFavicon project={project} className="size-3 shrink-0" /> : null}
             <div className="min-w-0 truncate text-foreground/75">{projectDisplayName}</div>
@@ -511,8 +515,27 @@ function TopStatusIcon(props: { icon: keyof typeof TOP_STATUS_ICONS; className: 
   return <Icon aria-hidden className={cn("shrink-0", props.className)} />;
 }
 
+// A bot has no repo to show a favicon for, so the row carries its initial instead.
+function BotMonogram(props: { name: string; className?: string }) {
+  const initial = props.name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-muted font-medium text-muted-foreground text-2xs leading-none",
+        props.className,
+      )}
+    >
+      {initial}
+    </span>
+  );
+}
+
 type SidebarThreadRowProps = {
   thread: SidebarThreadSummary;
+  // Set when the thread is a chat with a bot: the bot is who you're talking to, so it leads the
+  // row and the workspace stays out of it.
+  bot?: { readonly name: string; readonly role: string } | null;
   // "folder" is a one-line row inside a boring sidebar project folder;
   // "folder-multiline" adds the card's branch and PR line under it.
   variant: "card" | "slim" | "folder" | "folder-multiline";
@@ -632,6 +655,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   } = props;
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const threadKey = scopedThreadKey(threadRef);
+  // A bot's own name is the row's identity, not the message that opened the chat.
+  const botName = props.bot?.name ?? null;
   const canOperateThread = useEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope);
   const { leaseLiveStatus, rowRef: leaseRowRef } = useSidebarRowSubscriptionLease(props.isActive);
   const { revealRef } = props;
@@ -767,6 +792,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const detailsTooltip = (
     <SidebarThreadTooltip
       thread={thread}
+      bot={props.bot}
       project={props.project}
       projectDisplayName={props.projectDisplayName}
       environmentLabel={props.environmentLabel}
@@ -800,6 +826,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     if (
       event.key === "F2" &&
       !isRenaming &&
+      botName === null &&
       readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope)
     ) {
       event.preventDefault();
@@ -814,6 +841,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     if (
       !readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope) ||
       isRenaming ||
+      botName !== null ||
       event.metaKey ||
       event.ctrlKey ||
       event.shiftKey ||
@@ -950,7 +978,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     ) : null;
 
   const accessibility = resolveSidebarRowAccessibility({
-    title: thread.title,
+    title: botName ?? thread.title,
     statusLabel: topStatus?.label ?? null,
     projectDisplayName: props.projectDisplayName,
     isActive: props.isActive,
@@ -990,12 +1018,14 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             ),
         isRegeneratingTitle && "opacity-55",
       )}
-      dir={textDirection(thread.title)}
+      dir={textDirection(botName ?? thread.title)}
     >
-      {thread.title}
+      {botName ?? thread.title}
     </span>
   );
-  const accessibleTitle = isRenaming ? null : <span className="sr-only">{thread.title}</span>;
+  const accessibleTitle = isRenaming ? null : (
+    <span className="sr-only">{botName ?? thread.title}</span>
+  );
 
   const terminalStatusIcon = (
     <ThreadTerminalStatusButton
@@ -1062,13 +1092,20 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         <EnvironmentMachineIcon aria-hidden kind={props.environmentMachine} className="size-3.5" />
       </span>
     ) : null;
-  const diff = latestRunDiff(thread);
-  // Only the trailing icons would remain, so the row moves them to the title line instead.
+  const diff = props.bot ? null : latestRunDiff(thread);
+  // A chat with a bot shows no workspace: its branch, worktree, machine and diff are not
+  // things you are deciding about, and the bot's role already owns the second line.
   const metaLineEmpty =
-    !thread.branch && !showsScratchMachine && diff === null && runningTerminalIds.length === 0;
+    props.bot == null &&
+    !thread.branch &&
+    !showsScratchMachine &&
+    diff === null &&
+    runningTerminalIds.length === 0;
   const metaLine = metaLineEmpty ? null : (
     <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-secondary-label text-xs">
-      {thread.branch ? (
+      {props.bot ? (
+        <span className="min-w-0 flex-1 truncate">{props.bot.role}</span>
+      ) : thread.branch ? (
         <>
           <ThreadWorktreeIndicator thread={thread} />
           <span className="flex min-w-0 flex-1">
@@ -1169,7 +1206,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       "opacity-40 grayscale group-focus-within/sidebar-row:opacity-100 group-focus-within/sidebar-row:grayscale-0 group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0",
                   )}
                 >
-                  {props.project ? (
+                  {props.bot ? (
+                    <BotMonogram name={props.bot.name} className="size-4" />
+                  ) : props.project ? (
                     <ProjectFavicon project={props.project} className="size-4" />
                   ) : null}
                 </span>
@@ -1356,13 +1395,15 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           >
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
-              {props.project ? (
+              {props.bot ? (
+                <BotMonogram name={props.bot.name} className="size-4" />
+              ) : props.project ? (
                 <ProjectFavicon project={props.project} className="size-4 shrink-0" />
               ) : null}
               {/* Left of the status slot, the pin would slide when hover swaps the
                 label for the wider row controls. */}
               {pinIndicator}
-              {props.projectDisplayName ? (
+              {props.projectDisplayName && props.bot === null ? (
                 <span
                   className={cn("min-w-0 flex-1 truncate font-normal text-secondary-label text-xs")}
                 >
@@ -1534,6 +1575,7 @@ const scrollHighlightedResultIntoView = (node: HTMLLIElement | null) => {
 export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
   isSettled: boolean;
   thread: SidebarThreadSummary;
+  bot: { readonly name: string; readonly role: string } | null;
   project: EnvironmentProject | null;
   projectDisplayName: string | null;
   environmentLabel: string | null;
@@ -1553,7 +1595,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
   const thread =
     useThreadShell(scopeThreadRef(props.thread.environmentId, props.thread.id)) ?? props.thread;
   const accessibility = resolveSidebarRowAccessibility({
-    title: thread.title,
+    title: props.bot?.name ?? thread.title,
     statusLabel: null,
     projectDisplayName: props.projectDisplayName,
     isActive: props.isRouteActive,
@@ -1681,6 +1723,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
         </TooltipTrigger>
         <SidebarThreadTooltip
           thread={thread}
+          bot={props.bot}
           project={props.project}
           projectDisplayName={props.projectDisplayName}
           environmentLabel={props.environmentLabel}

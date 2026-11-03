@@ -11,6 +11,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
+import * as BotInstructions from "../bots/BotInstructions.ts";
 import * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegistry.ts";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import * as ProjectStore from "./ProjectStore.ts";
@@ -71,15 +72,20 @@ function providerRuntimeMode(
     : "approval-required";
 }
 
+// A bot thread's instructions are staged here because this is the one place a policy read
+// already has the thread; a plain thread never touches the file system.
 export const layerFromProjectStore: Layer.Layer<
   RuntimePolicyV2,
   never,
-  ProjectStore.ProjectStoreV2 | ProviderInstanceRegistry.ProviderInstanceRegistry
+  | ProjectStore.ProjectStoreV2
+  | ProviderInstanceRegistry.ProviderInstanceRegistry
+  | BotInstructions.BotInstructions
 > = Layer.effect(
   RuntimePolicyV2,
   Effect.gen(function* () {
     const projects = yield* ProjectStore.ProjectStoreV2;
     const providerInstances = yield* ProviderInstanceRegistry.ProviderInstanceRegistry;
+    const botInstructions = yield* BotInstructions.BotInstructions;
     return RuntimePolicyV2.of({
       resolve: Effect.fn("RuntimePolicyV2.resolve")(function* (input) {
         const instance = yield* providerInstances.getInstance(input.modelSelection.instanceId);
@@ -112,10 +118,20 @@ export const layerFromProjectStore: Layer.Layer<
               }),
             ),
           ));
+        const botInstructionsPath = yield* botInstructions.stageForTurn(input.thread.botId).pipe(
+          Effect.catch((cause) =>
+            Effect.logWarning("Could not stage bot instructions for this turn.", {
+              threadId: input.thread.id,
+              ...(input.thread.botId === undefined ? {} : { botId: input.thread.botId }),
+              cause,
+            }).pipe(Effect.as(null)),
+          ),
+        );
         return ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
           runtimeMode: providerRuntimeMode(input.thread.runtimeMode, supportedRuntimeModes),
           interactionMode: input.thread.interactionMode,
           cwd,
+          ...(botInstructionsPath === null ? {} : { botInstructionsPath }),
         });
       }),
     });

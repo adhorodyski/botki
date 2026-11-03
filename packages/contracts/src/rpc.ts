@@ -393,8 +393,11 @@ import {
 } from "./sourceControl.ts";
 import { VcsError } from "./vcs.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
+import { Bot, BotMutation, BotMutationError, BotSnapshot } from "./bot.ts";
 
 export const WS_METHODS = {
+  botsList: "bots.list",
+  botsMutate: "bots.mutate",
   projectsListEntries: "projects.listEntries",
   projectsListIgnoredFiles: "projects.listIgnoredFiles",
   projectsReadFile: "projects.readFile",
@@ -1320,6 +1323,18 @@ const WsProjectsCreateFromThreadRpc = Rpc.make(WS_METHODS.projectsCreateFromThre
   error: Schema.Union([OrchestrationDispatchCommandError, EnvironmentAuthorizationError]),
 });
 
+const WsBotsListRpc = Rpc.make(WS_METHODS.botsList, {
+  payload: Schema.Struct({}),
+  success: BotSnapshot,
+  error: Schema.Union([BotMutationError, EnvironmentAuthorizationError]),
+});
+
+const WsBotsMutateRpc = Rpc.make(WS_METHODS.botsMutate, {
+  payload: BotMutation,
+  success: Bot,
+  error: Schema.Union([BotMutationError, EnvironmentAuthorizationError]),
+});
+
 const WsShellOpenInEditorRpc = Rpc.make(WS_METHODS.shellOpenInEditor, {
   payload: LaunchEditorInput,
   error: Schema.Union([ExternalLauncherError, EnvironmentAuthorizationError]),
@@ -2058,6 +2073,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsProjectsCreateFromThreadRpc,
   WsProjectsWriteFileRpc,
   WsProjectsMutateRpc,
+  WsBotsListRpc,
+  WsBotsMutateRpc,
   WsShellOpenInEditorRpc,
   WsFilesystemBrowseRpc,
   WsFilesystemGetMetadataRpc,

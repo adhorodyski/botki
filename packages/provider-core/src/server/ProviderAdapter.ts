@@ -51,6 +51,11 @@ export const ProviderAdapterV2RuntimePolicy = Schema.Struct({
   cwd: Schema.NullOr(Schema.String),
   approvalPolicy: Schema.optional(Schema.Unknown),
   sandboxPolicy: Schema.optional(Schema.Unknown),
+  /**
+   * File a bot thread's provider session reads for its instructions. Absent on plain threads,
+   * so their prompt is byte-identical to before bots existed.
+   */
+  botInstructionsPath: Schema.optional(Schema.String),
 });
 export type ProviderAdapterV2RuntimePolicy = typeof ProviderAdapterV2RuntimePolicy.Type;
 

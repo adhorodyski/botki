@@ -67,12 +67,14 @@ import {
   type ProjectEntriesFailure,
   type ProjectFileFailure,
   type ProjectFileOperation,
+  type BotMutation,
   type ProjectMutation,
   ProjectListEntriesError,
   ProjectReadFileError,
   ProjectSearchContentsError,
   ProjectSearchEntriesError,
   ProjectWriteFileError,
+  BotMutationError,
   ProjectMutationError,
   ProviderUploadFeedbackError,
   ProviderSetupError,
@@ -120,6 +122,7 @@ import * as ThreadMessageIntake from "./orchestration-v2/ThreadMessageIntake.ts"
 import * as DocumentText from "./provider/DocumentText.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
+import * as BotService from "./bots/BotService.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
 import {
   bufferShellLiveStream,
@@ -659,6 +662,7 @@ function toAuthAccessStreamEvent(
   }
 }
 
+const isBotMutationError = Schema.is(BotMutationError);
 const isClientSurface = Schema.is(ClientSurface);
 const isClientConnectionMethod = Schema.is(ClientConnectionMethod);
 const isClientDeviceType = Schema.is(ClientDeviceType);
@@ -1307,6 +1311,21 @@ export const layerWsRpc = (
       const commandOutputHub = yield* CommandOutputHub.CommandOutputHub;
       const providerSessionManager = yield* ProviderSessionManager.ProviderSessionManagerV2;
       const scheduledTasks = yield* ScheduledTasks.ScheduledTaskService;
+      const bots = yield* BotService.BotService;
+      // BotStoreError carries no id, and BotMutationError's is optional.
+      const botMutationError = (mutation: BotMutation, cause: unknown): BotMutationError =>
+        mutation.type === "bot.create"
+          ? new BotMutationError({
+              failure: "bot_not_found",
+              message: "Failed to create the bot.",
+              cause,
+            })
+          : new BotMutationError({
+              botId: mutation.id,
+              failure: "bot_not_found",
+              message: "Failed to change the bot.",
+              cause,
+            });
       const secretRequests = yield* SecretRequests.SecretRequests;
       const pullRequests = yield* PullRequestService.PullRequestService;
       const reviewGuides = yield* PullRequestReviewGuideService.PullRequestReviewGuideService;
@@ -2086,6 +2105,7 @@ export const layerWsRpc = (
                     runtimeMode: input.runtimeMode,
                     interactionMode: input.interactionMode,
                     workspaceStrategy: input.workspaceStrategy,
+                    ...(input.botId === undefined ? {} : { botId: input.botId }),
                     ...(input.initialMessage === undefined
                       ? {}
                       : {
@@ -2174,6 +2194,28 @@ export const layerWsRpc = (
               Effect.as(commandOutputHub.subscribe(input)),
             ),
           ),
+        [WS_METHODS.botsList]: () =>
+          bots.list().pipe(
+            Effect.flatMap((bots) =>
+              Effect.map(DateTime.now, (now) => ({ bots, updatedAt: DateTime.formatIso(now) })),
+            ),
+            Effect.mapError(
+              (cause) =>
+                new BotMutationError({
+                  failure: "bot_not_found",
+                  message: "Failed to list bots.",
+                  cause,
+                }),
+            ),
+          ),
+        [WS_METHODS.botsMutate]: (mutation) =>
+          bots
+            .mutate(mutation)
+            .pipe(
+              Effect.mapError((cause) =>
+                isBotMutationError(cause) ? cause : botMutationError(mutation, cause),
+              ),
+            ),
         [WS_METHODS.scheduledTasksSubscribe]: (_input) =>
           scheduledTasks.subscribeList().pipe(Stream.map(withVisibleWebhookUrls)),
         [WS_METHODS.scheduledTasksUpsert]: (input) => scheduledTasks.upsert(input),

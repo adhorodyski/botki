@@ -1318,6 +1318,7 @@ export function useComposerSend(input: ComposerSendInput) {
                       branch: activeThreadBranch,
                       worktreePath: activeThread.worktreePath,
                       createdAt: activeThread.createdAt,
+                      ...(draftThread?.botId === undefined ? {} : { botId: draftThread.botId }),
                     },
                   }
                 : {}),

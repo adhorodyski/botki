@@ -14,6 +14,7 @@ import {
   ChatAttachmentId,
   ComposerContextId,
   type ChatAttachment,
+  BotId,
   CommandId,
   DEFAULT_SERVER_SETTINGS,
   GitCommandError,
@@ -288,6 +289,7 @@ function launchInput(input: {
   readonly thread: string;
   readonly message?: string;
   readonly workspace?: ThreadLaunch.ThreadLaunchWorkspaceStrategy;
+  readonly botId?: string;
 }) {
   return {
     commandId: CommandId.make(input.command),
@@ -298,6 +300,7 @@ function launchInput(input: {
     runtimeMode: "full-access" as const,
     interactionMode: "default" as const,
     workspaceStrategy: input.workspace ?? { type: "root" as const },
+    ...(input.botId === undefined ? {} : { botId: BotId.make(input.botId) }),
     ...(input.message === undefined
       ? {}
       : {
@@ -470,6 +473,27 @@ it.effect("runs a thread-bound automation on the provider the thread uses now", 
     assert.deepStrictEqual(run?.modelSelection, claudeModelSelection);
     assert.deepStrictEqual(projection.thread.modelSelection, claudeModelSelection);
   }).pipe(Effect.provide(Layer.mergeAll(harness.layer, layerScheduledTasks)));
+});
+
+it.effect("stamps the launching bot on the thread the launch creates", () => {
+  const harness = makeHarness();
+  return Effect.gen(function* () {
+    const launches = yield* ThreadLaunch.ThreadLaunchService;
+    const threads = yield* ThreadManagement.ThreadManagementService;
+    const launched = yield* launches.launch(
+      launchInput({ command: "command:viki", thread: "thread:viki", botId: "viki" }),
+    );
+    const projection = yield* threads.getThreadProjection(launched.threadId);
+    assert.equal(projection.thread.botId, BotId.make("viki"));
+
+    // A launch with no bot leaves the field absent rather than null, so a plain thread's
+    // projection is byte-for-byte what it was before bots existed.
+    const plain = yield* launches.launch(
+      launchInput({ command: "command:plain", thread: "thread:plain" }),
+    );
+    const plainProjection = yield* threads.getThreadProjection(plain.threadId);
+    assert.isFalse("botId" in plainProjection.thread);
+  }).pipe(Effect.provide(harness.layer));
 });
 
 it.effect("retains automation and sender attribution while a message waits in the queue", () => {
