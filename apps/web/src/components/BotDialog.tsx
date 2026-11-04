@@ -1,7 +1,7 @@
 import { type Bot, type EnvironmentId, botIdFromName } from "@t3tools/contracts";
 import { useId, useState } from "react";
 
-import { mutateBots } from "../state/bots";
+import { mutateBots, saveBotMemory, useBotMemory } from "../state/bots";
 import { Button } from "./ui/button";
 import {
   AlertDialog,
@@ -40,9 +40,16 @@ interface BotDialogProps {
  */
 export function BotDialog({ environmentId, bot, onSettled, onOpenChange }: BotDialogProps) {
   const id = useId();
+  const {
+    memory: storedMemory,
+    maxChars,
+    isPending: memoryPending,
+  } = useBotMemory(environmentId, bot?.id ?? null);
   const [name, setName] = useState(bot?.name ?? "");
   const [role, setRole] = useState(bot?.role ?? "");
   const [brief, setBrief] = useState(bot?.brief ?? "");
+  // Null until the owner touches the field, so an unread file can never be saved back as empty.
+  const [memoryEdit, setMemoryEdit] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -50,6 +57,8 @@ export function BotDialog({ environmentId, bot, onSettled, onOpenChange }: BotDi
   const trimmedName = name.trim();
   const trimmedRole = role.trim();
   const canSave = trimmedName.length > 0 && trimmedRole.length > 0 && !submitting;
+  const memory = memoryEdit ?? storedMemory;
+  const memoryChanged = memoryEdit !== null && memoryEdit.trim() !== storedMemory;
 
   // The server derives the id from the name when none is sent, so a rename keeps one bot's folder
   // and its brief path stable rather than opening a second one.
@@ -74,9 +83,16 @@ export function BotDialog({ environmentId, bot, onSettled, onOpenChange }: BotDi
             brief: brief.trim(),
           },
     );
+    // Memory is saved second and only if the row is safe: a bot that failed to save has no
+    // turn to carry notes, and the cap reason is the owner's to read, not to lose.
+    const saved =
+      result.error === null && bot !== null && memoryChanged
+        ? await saveBotMemory(environmentId, bot.id, memory)
+        : null;
     setSubmitting(false);
-    if (result.error !== null) {
-      setError(result.error);
+    const failure = result.error ?? saved?.error ?? null;
+    if (failure !== null) {
+      setError(failure);
       return;
     }
     onSettled();
@@ -153,6 +169,30 @@ export function BotDialog({ environmentId, bot, onSettled, onOpenChange }: BotDi
                   Sent to the model on every turn of the bot&rsquo;s threads.
                 </p>
               </div>
+
+              {bot ? (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor={`${id}-memory`}>What it knows</Label>
+                  <Textarea
+                    id={`${id}-memory`}
+                    // The bot wrote these itself. Editing here is the owner having the last word,
+                    // and emptying the field is how they make the bot forget.
+                    value={memory}
+                    onChange={(event) => setMemoryEdit(event.target.value)}
+                    disabled={memoryPending}
+                    rows={5}
+                    placeholder={
+                      memoryPending
+                        ? "Loading…"
+                        : "Nothing yet. A bot adds to this when it learns something worth keeping."
+                    }
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    What the bot learned in earlier chats, and reaches its later ones. Empty it to
+                    make the bot forget. {memory.length} of {maxChars}.
+                  </p>
+                </div>
+              ) : null}
 
               {error ? <p className="text-destructive-foreground text-sm">{error}</p> : null}
             </DialogPanel>

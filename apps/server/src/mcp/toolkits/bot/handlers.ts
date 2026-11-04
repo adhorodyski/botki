@@ -19,16 +19,15 @@ const handlers = {
         });
       }
       const bots = yield* BotService.BotService;
+      // A refusal names the cap and what to do about it, so the agent shortens what it knows
+      // instead of sending the same note again.
       const saved = yield* bots.appendMemoryNote(botId, input.note).pipe(
-        // A refusal names the cap and the caller can act on it, so the agent shortens what it
-        // knows instead of sending the same note again.
-        Effect.catch((cause) =>
-          Effect.fail(
+        Effect.mapError(
+          (cause) =>
             new OrchestratorMcpFailure({
               code: isCapRefusal(cause) ? "invalid_request" : "orchestration_error",
               message: cause.message,
             }),
-          ),
         ),
       );
       return {
