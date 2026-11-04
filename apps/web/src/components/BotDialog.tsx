@@ -44,6 +44,7 @@ export function BotDialog({ environmentId, bot, onSettled, onOpenChange }: BotDi
     memory: storedMemory,
     maxChars,
     isPending: memoryPending,
+    refresh: refreshMemory,
   } = useBotMemory(environmentId, bot?.id ?? null);
   const [name, setName] = useState(bot?.name ?? "");
   const [role, setRole] = useState(bot?.role ?? "");
@@ -95,6 +96,8 @@ export function BotDialog({ environmentId, bot, onSettled, onOpenChange }: BotDi
       setError(failure);
       return;
     }
+    // The row's "Knows:" line reads this same atom, so one refresh settles both.
+    if (saved !== null) refreshMemory();
     onSettled();
     onOpenChange(false);
   };

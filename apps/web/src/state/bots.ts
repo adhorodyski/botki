@@ -112,7 +112,12 @@ export interface BotMemorySaveResult extends BotMemoryView {
 export function useBotMemory(
   environmentId: EnvironmentId | null,
   botId: BotId | null,
-): { readonly memory: string; readonly maxChars: number; readonly isPending: boolean } {
+): {
+  readonly memory: string;
+  readonly maxChars: number;
+  readonly isPending: boolean;
+  readonly refresh: () => void;
+} {
   const query = useEnvironmentQuery(
     environmentId === null || botId === null
       ? null
@@ -122,6 +127,7 @@ export function useBotMemory(
     memory: query.data?.memory ?? "",
     maxChars: query.data?.maxChars ?? 0,
     isPending: query.isPending,
+    refresh: query.refresh,
   };
 }
 
