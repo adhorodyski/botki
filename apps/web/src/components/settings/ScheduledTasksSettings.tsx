@@ -315,11 +315,11 @@ export function scheduleLabel(schedule: ScheduledTaskSchedule): string {
 
 /** formatRelativeTime handles only the past; upcoming runs need future labels. */
 function relativeLabel(value: string | null, nowMs: number): string {
-  if (!value) return "Not scheduled";
+  if (!value) return "No next run";
   const diffMs = new Date(value).getTime() - nowMs;
   if (diffMs <= 0) {
     const relative = formatRelativeTime(value, nowMs);
-    if (!relative) return "Not scheduled";
+    if (!relative) return "No next run";
     return relative.suffix ? `${relative.value} ${relative.suffix}` : relative.value;
   }
   const minutes = Math.ceil(diffMs / 60_000);
@@ -425,7 +425,8 @@ export function ScheduledTasksSettings(target: {
   return (
     <SettingsPageContainer>
       <SettingsSection
-        title="Scheduled tasks"
+        title="Routines"
+        id="routines"
         variant="plain"
         headerAction={
           <Button
@@ -438,7 +439,7 @@ export function ScheduledTasksSettings(target: {
             }
           >
             <PlusIcon className="size-3" />
-            New task
+            New routine
           </Button>
         }
       >
@@ -453,7 +454,7 @@ export function ScheduledTasksSettings(target: {
                 <Clock3Icon />
               </EmptyMedia>
               <EmptyTitle>No environments available</EmptyTitle>
-              <EmptyDescription>Connect an environment to manage scheduled tasks.</EmptyDescription>
+              <EmptyDescription>Connect an environment to set up routines.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : environments.length > 1 ? (
@@ -532,9 +533,9 @@ function ScheduledTaskEnvironmentList({
   const populated = loaded.filter((state) => state.tasks && state.tasks.length > 0);
   const summaries: Record<string, string[]> = {
     "Not connected:": [],
-    "Loading scheduled tasks on": [],
-    "Could not load scheduled tasks:": [],
-    "No tasks on": [],
+    "Loading routines on": [],
+    "Could not load routines:": [],
+    "No routines on": [],
   };
   for (const { environment, connected, tasks, error } of states) {
     const label = settingsScopeEnvironmentLabel(environment, environments);
@@ -543,11 +544,11 @@ function ScheduledTaskEnvironmentList({
         `${label} (${connectionStatusTitle(environment.connection)})`,
       );
     } else if (error !== null) {
-      summaries["Could not load scheduled tasks:"]!.push(`${label}: ${error}`);
+      summaries["Could not load routines:"]!.push(`${label}: ${error}`);
     } else if (!tasks) {
-      summaries["Loading scheduled tasks on"]!.push(label);
+      summaries["Loading routines on"]!.push(label);
     } else if (tasks.length === 0 && populated.length > 0) {
-      summaries["No tasks on"]!.push(label);
+      summaries["No routines on"]!.push(label);
     }
   }
 
@@ -585,15 +586,15 @@ function ScheduledTaskEnvironmentList({
       })}
       {taskId && linkedState?.tasks && linkedState.error === null && !linkedTask ? (
         <SettingsRow
-          title="Task unavailable"
-          description="This task was deleted or belongs to a different project. Check your project filter."
+          title="Routine unavailable"
+          description="This routine was deleted or belongs to a different project. Check your project filter."
           role="status"
         />
       ) : null}
       {populated.length === 0 && loaded.length > 0 ? (
         <SettingsRow
-          title="No scheduled tasks"
-          description="No tasks match this environment and project selection."
+          title="No routines"
+          description="No routines match this environment and project."
         />
       ) : null}
       {Object.entries(summaries).map(([label, entries]) => {
@@ -675,25 +676,25 @@ function ScheduledTaskEnvironmentSection({
       {!connected ? (
         <SettingsRow
           title="Environment disconnected"
-          description={`Reconnect ${environment.label} to view its scheduled tasks.`}
+          description={`Reconnect ${environment.label} to see its routines.`}
         />
       ) : tasksQuery.error ? (
-        <SettingsRow title="Could not load scheduled tasks" description={tasksQuery.error} />
+        <SettingsRow title="Could not load routines" description={tasksQuery.error} />
       ) : !tasks ? (
-        <SettingsRow title="Loading scheduled tasks…" role="status" />
+        <SettingsRow title="Loading routines…" role="status" />
       ) : (
         <>
           {taskId && !linkedTask ? (
             <SettingsRow
-              title="Task unavailable"
-              description="This task was deleted or belongs to a different project. Check your project filter."
+              title="Routine unavailable"
+              description="This routine was deleted or belongs to a different project. Check your project filter."
               role="status"
             />
           ) : null}
           {tasks.length === 0 ? (
             <SettingsRow
-              title="No scheduled tasks"
-              description="No tasks match this environment and project selection."
+              title="No routines"
+              description="No routines match this environment and project."
             />
           ) : (
             tasks.map((task) => (
@@ -727,13 +728,13 @@ function ScheduledTaskRow({
   const [deliveriesOpen, setDeliveriesOpen] = useState(false);
   const isWebhook = task.schedule.type === "webhook";
   const toggle = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
-    label: "scheduled task enabled",
+    label: "routine enabled",
   });
   const run = useAtomCommand(serverEnvironment.runScheduledTaskNow, {
-    label: "scheduled task run now",
+    label: "run routine now",
   });
   const remove = useAtomCommand(serverEnvironment.deleteScheduledTask, {
-    label: "scheduled task delete",
+    label: "delete routine",
   });
   const act = async (action: "toggle" | "run" | "delete") => {
     if (busy || !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return;
@@ -749,7 +750,7 @@ function ScheduledTaskRow({
       toastManager.add(
         stackedThreadToast({
           type: "error",
-          title: "Could not update scheduled task",
+          title: "Could not update routine",
           description: String(squashAtomCommandFailure(result)),
         }),
       );
@@ -772,7 +773,7 @@ function ScheduledTaskRow({
                 Next run <ScheduledRelativeLabel value={task.nextRunAt} />
               </>
             ) : (
-              "Not scheduled"
+              "No next run"
             )}
           </span>
           {task.lastRunStatus !== "never" ? (
@@ -878,7 +879,7 @@ function WebhookDeliveriesDialog({
       <DialogPopup className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Deliveries · {task.title}</DialogTitle>
-          <DialogDescription>Recent requests to this task's webhook URL.</DialogDescription>
+          <DialogDescription>Recent requests to this routine's webhook URL.</DialogDescription>
         </DialogHeader>
         <DialogPanel>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -1026,7 +1027,7 @@ function WebhookEndpointField({
   const httpBaseUrl = useEnvironmentHttpBaseUrl(environmentId);
   const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "webhook URL" });
   const rotate = useAtomCommand(serverEnvironment.rotateScheduledTaskWebhookToken, {
-    label: "scheduled task rotate webhook token",
+    label: "rotate routine webhook token",
   });
   const [rotating, setRotating] = useState(false);
   const endpoint = task?.webhook;
@@ -1189,7 +1190,7 @@ function ScheduledTaskEditorForm({
     serverEnvironment.upsertScheduledTask.permissionAtom(environmentId),
   );
   const upsertTask = useAtomCommand(serverEnvironment.upsertScheduledTask, {
-    label: "scheduled task upsert",
+    label: "save routine",
   });
   const [draft, setDraft] = useState<DraftState>(() =>
     task
@@ -1269,7 +1270,7 @@ function ScheduledTaskEditorForm({
       !projects.some((project) => project.id === selectedProjectId) ||
       selection === null
     ) {
-      reportFailure("Scheduled task is incomplete", "Add a title, prompt, project, and model.");
+      reportFailure("Routine is incomplete", "Add a name, prompt, project, and model.");
       return;
     }
     const parsedFilters = parseWebhookFilterDrafts(draft.filters);
@@ -1302,7 +1303,7 @@ function ScheduledTaskEditorForm({
     if (schedule.type === "once" && !offersOnce) {
       reportFailure(
         "Once is not available here",
-        "This environment runs an older T3 Code. Update it to schedule a one-time task, or pick another schedule.",
+        "This environment is too old to run a routine once. Update it, or pick another schedule.",
       );
       return;
     }
@@ -1349,7 +1350,7 @@ function ScheduledTaskEditorForm({
     if (result._tag === "Failure") {
       submissionPending.current = false;
       if (!isAtomCommandInterrupted(result)) {
-        reportFailure("Could not save scheduled task", squashAtomCommandFailure(result));
+        reportFailure("Could not save routine", squashAtomCommandFailure(result));
       }
       return;
     }
@@ -1359,7 +1360,7 @@ function ScheduledTaskEditorForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{draft.editingId ? "Edit task" : "New task"}</DialogTitle>
+        <DialogTitle>{draft.editingId ? "Edit routine" : "New routine"}</DialogTitle>
         <DialogDescription>
           Run a prompt automatically on an interval, at a fixed time, once at a set date, or when a
           webhook is called.
@@ -1481,7 +1482,7 @@ function ScheduledTaskEditorForm({
                 </SelectPopup>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Each run starts a new thread owned by this bot, and its brief binds every turn.
+                Each run starts its own chat as this bot, and the bot's brief shapes every turn.
               </p>
             </Field>
           ) : null}
@@ -1609,8 +1610,8 @@ function ScheduledTaskEditorForm({
             {task?.schedule.type === "interval" &&
             task.schedule.everyMs < MIN_SCHEDULED_TASK_INTERVAL_MS ? (
               <p className="text-sm text-muted-foreground" role="status">
-                This task uses a legacy interval below one minute. Saving updates it to at least one
-                minute.
+                This routine runs more often than once a minute, which is no longer allowed. Saving
+                sets it to one minute.
               </p>
             ) : null}
             {/* Wraps the toggle below the label when both don't fit, as on phones. */}
@@ -1906,7 +1907,7 @@ function ScheduledTaskEditorForm({
             <div className="min-w-0 space-y-1">
               <Label htmlFor="scheduled-task-enabled">Enabled</Label>
               <p id="scheduled-task-enabled-description" className="text-sm text-muted-foreground">
-                Disabled tasks stay saved but do not run.
+                Disabled routines stay saved but do not run.
               </p>
             </div>
             <Switch
@@ -1928,7 +1929,7 @@ function ScheduledTaskEditorForm({
           disabled={!canOperate || saving || editingTaskMissing || !connected || !tasksQuery.data}
           onClick={() => void submit()}
         >
-          {draft.editingId ? "Save task" : "Create task"}
+          {draft.editingId ? "Save routine" : "Create routine"}
         </Button>
       </DialogFooter>
     </>

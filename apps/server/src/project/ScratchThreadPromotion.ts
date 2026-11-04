@@ -111,7 +111,7 @@ const make = Effect.gen(function* () {
         const projectId = yield* createProject(thread.title, folder);
         yield* scheduledTasks
           .moveThreadTasks({ threadIds: [...moveSet.keys()], projectId })
-          .pipe(Effect.mapError(fail("Could not move the thread's scheduled tasks.")));
+          .pipe(Effect.mapError(fail("Could not move the thread's routines.")));
         for (const candidate of moveSet.values()) {
           const commandId = CommandId.make(`scratch-promotion:${yield* randomId}`);
           yield* threads

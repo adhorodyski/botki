@@ -73,6 +73,17 @@ describe("searchSettings", () => {
     }
   });
 
+  it("finds routines under both names", () => {
+    // The section reads "Routines" while the code, wire, and table keep upstream's
+    // ScheduledTask names, so the old word has to stay searchable or muscle memory dead-ends.
+    for (const query of ["routine", "routines", "scheduled", "schedule", "cron", "webhook"]) {
+      expect(searchSettings(query)[0]).toMatchObject({
+        id: "routines",
+        to: "/settings/scheduled-tasks",
+      });
+    }
+  });
+
   it("hides the Secrets page from nav and search while the secrets feature is disabled", () => {
     expect(SETTINGS_NAV_GROUPS.flatMap((group) => group.paths)).not.toContain("/settings/secrets");
     expect(searchSettings("1password").map((item) => item.to)).not.toContain("/settings/secrets");

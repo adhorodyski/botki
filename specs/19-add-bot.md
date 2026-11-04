@@ -16,13 +16,13 @@ and renaming never moves a bot's folder.
 opens a draft owned by that bot, and nothing is created until you send. Its last item, _Add a
 bot_, goes to settings. A bot's brief reaches its own chats' turns and no others.
 
-**On a schedule.** A scheduled task can name a bot under **Settings → Scheduled tasks**: the run
+**On a schedule.** A routine can name a bot under **Settings → Routines**: the run
 starts a new thread owned by that bot, so it lands in the conversation list as the bot's chat with
 its brief binding every turn. Naming a bot needs a model on a provider that carries briefs, and
-saving without one is refused and says so. A task keeps its name for later edits; if you delete the
-bot, its task does not run unnamed — it pauses, and its row in settings says it could not run as
-that bot until you pick again. A task that names no bot, and one that continues an existing
-conversation, run exactly as they did before.
+saving without one is refused and says so. A routine keeps its name for later edits; if you delete
+the bot, its routine does not run unnamed — it pauses, and its row in settings says it could not
+run as that bot until you pick again. A routine that names no bot, and one that continues an
+existing conversation, run exactly as they did before.
 
 **Deleting.** Deleting asks first, and says what survives: the bot stops receiving new turns and
 its chats remain, but its folder and everything written in it stays on disk.

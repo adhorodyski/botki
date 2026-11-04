@@ -26,7 +26,7 @@ Unattended runs are the risk, so this file also carries the rules that keep one 
 - **team** means the bots this owner has added.
 - **room** means one thread several bots share. Not built yet; it will replace a thread's single `botId` with participants.
 - **needs-you** means the queue of work that genuinely needs me, and the only screen I read in the morning.
-- **routine** means work a bot takes up on a schedule rather than on message. Scheduled runs exist upstream; wiring them to a bot is not built.
+- **routine** means work that starts on a schedule or a webhook rather than on a message. It is what the app calls these everywhere people see them; the code, wire, and table keep upstream's `ScheduledTask`/`scheduled_tasks` names, so do not rename them. Bots can be named on a routine since #33.
 - **provider** means the agent harness Botki talks to. Ours is Pi; the others stay because upstream maintains them, and nothing we ship may depend on them. A brief reaches a turn only on an adapter declaring `supportsBotInstructions` (Pi and Claude today); the rest refuse the turn. See `docs/internals/adding-a-provider.md`.
 - **project** means a repository checkout. It is a workspace a bot may use, not the unit of the UI. Keep new features readable without one; do not make a feature require picking a repo. `projectId` is still required on a thread and the scratch project stands in for bot chats until it becomes optional.
 - **slice** means one issue-sized unit of work that fits in one unattended run and one PR.
