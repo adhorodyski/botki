@@ -2,8 +2,9 @@ import * as Scheduler from "../scheduling/Scheduler.ts";
 import * as NodeUtil from "node:util";
 
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
-import { assert, it, vi } from "@effect/vitest";
+import { assert, describe, it, vi } from "@effect/vitest";
 import {
+  BotId,
   ProjectId,
   ProviderInstanceId,
   ScheduledTaskError,
@@ -30,6 +31,8 @@ import * as SecretRequests from "../secrets/SecretRequests.ts";
 import * as ManagedProjectFolders from "../project/ManagedProjectFolders.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ScheduledTaskService from "./ScheduledTaskService.ts";
+import { layerProviderInstances } from "./testUtils/scheduledTaskBotDeps.ts";
+import { scheduledTaskBotsWithNoBots } from "./testUtils/scheduledTaskBotDeps.ts";
 
 const isScheduledTaskError = Schema.is(ScheduledTaskError);
 
@@ -209,6 +212,7 @@ it.effect(
                 }),
                 Layer.mock(ThreadManagementService.ThreadManagementService)({}),
                 Layer.mock(SecretRequests.SecretRequests)({}),
+                scheduledTaskBotsWithNoBots,
                 NodeCrypto.layer,
                 Scheduler.layer,
               ),
@@ -306,6 +310,7 @@ it.effect(
                 }),
                 Layer.mock(ThreadManagementService.ThreadManagementService)({}),
                 Layer.mock(SecretRequests.SecretRequests)({}),
+                scheduledTaskBotsWithNoBots,
                 NodeCrypto.layer,
                 Scheduler.layer,
               ),
@@ -356,6 +361,7 @@ it.effect("thread cleanup notifies subscribers and a finishing run cannot recrea
               ),
           }),
           Layer.mock(SecretRequests.SecretRequests)({}),
+          scheduledTaskBotsWithNoBots,
           Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
             namedProjectsRoot: "/projects",
             isScratchProject: () => Effect.succeed(false),
@@ -439,6 +445,7 @@ it.effect("a bound run follows its thread when promotion moves it mid-send", () 
               ]),
           }),
           Layer.mock(SecretRequests.SecretRequests)({}),
+          scheduledTaskBotsWithNoBots,
           Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
             namedProjectsRoot: "/projects",
             isScratchProject: () => Effect.succeed(false),
@@ -492,6 +499,7 @@ it.effect("a run interrupted right after it reserves the task does not block the
           }),
           Layer.mock(ThreadManagementService.ThreadManagementService)({}),
           Layer.mock(SecretRequests.SecretRequests)({}),
+          scheduledTaskBotsWithNoBots,
           Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
             namedProjectsRoot: "/projects",
             isScratchProject: () => Effect.succeed(false),
@@ -544,3 +552,180 @@ it.effect("a run interrupted right after it reserves the task does not block the
     }).pipe(Effect.provide(layer));
   }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
 );
+
+// A task that names a bot is the one place the schedule can start a thread *as* someone, so
+// these cover the three ways that can go wrong: the name never reaching the launch, a save that
+// accepts a name no provider can carry, and a bot deleted after the save.
+describe("a scheduled task that names a bot", () => {
+  const viki = BotId.make("viki");
+  const briefCapable = "pi";
+
+  const insertBot = (sql: SqlClient.SqlClient, id: BotId) =>
+    sql`INSERT INTO bots ${sql.insert({
+      bot_id: id,
+      name: "Viki",
+      role: "Tidies the inbox",
+      brief: "Be brief.",
+      provider_instance_id: null,
+      created_at: "2026-09-09T12:00:00.000Z",
+      updated_at: "2026-09-09T12:00:00.000Z",
+    })}`.pipe(Effect.orDie);
+
+  const layerWith = (input: {
+    briefCapable: ReadonlyArray<string>;
+    launches: Array<{ botId: string | null; commandId: string }>;
+  }) =>
+    ScheduledTaskService.layer.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          Layer.mock(ThreadLaunchService.ThreadLaunchService)({
+            launch: (launchInput) =>
+              Effect.sync(() =>
+                input.launches.push({
+                  commandId: String(launchInput.commandId),
+                  botId:
+                    (("botId" in launchInput ? launchInput.botId : undefined) as
+                      | string
+                      | undefined) ?? null,
+                }),
+              ).pipe(
+                Effect.as({ threadId: ThreadId.make("thread:as-bot"), resumed: false } as never),
+              ),
+          }),
+          Layer.mock(ThreadManagementService.ThreadManagementService)({}),
+          Layer.mock(SecretRequests.SecretRequests)({}),
+          layerProviderInstances({ briefCapable: input.briefCapable }),
+          Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
+            namedProjectsRoot: "/projects",
+            isScratchProject: () => Effect.succeed(false),
+          }),
+          NodeCrypto.layer,
+          Layer.succeed(Scheduler.Scheduler, { register: () => Effect.void }),
+        ),
+      ),
+    );
+
+  const taskInput = {
+    title: "Tidy the inbox",
+    prompt: "Summarize what arrived overnight.",
+    enabled: true,
+    schedule: { type: "interval", everyMs: 60_000 } as const,
+    projectId: ProjectId.make("project:test"),
+    workspaceStrategy: { type: "root" } as const,
+    runtimeMode: "full-access" as const,
+    interactionMode: "default" as const,
+  };
+  const modelFor = (instanceId: string) => ({
+    instanceId: ProviderInstanceId.make(instanceId),
+    model: "pi-default",
+  });
+
+  it.effect("starts its thread carrying the bot's name", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const launches: Array<{ botId: string | null; commandId: string }> = [];
+      yield* insertBot(sql, viki);
+      const layer = layerWith({ briefCapable: [briefCapable], launches });
+      yield* Effect.gen(function* () {
+        const service = yield* ScheduledTaskService.ScheduledTaskService;
+        const { task } = yield* service.upsert({
+          ...taskInput,
+          id: ScheduledTaskId.make("task:names-a-bot"),
+          botId: viki,
+          modelSelection: modelFor(briefCapable),
+        });
+        assert.equal(task.botId, viki);
+
+        const ran = yield* service.runNow({ id: task.id });
+        assert.equal(ran.task.lastRunStatus, "succeeded");
+        assert.equal(launches.length, 1);
+        assert.equal(launches[0]?.botId, viki);
+      }).pipe(Effect.provide(layer));
+    }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+  );
+
+  it.effect("asks the launch for no bot when the task names none", () =>
+    Effect.gen(function* () {
+      const launches: Array<{ botId: string | null; commandId: string }> = [];
+      const layer = layerWith({ briefCapable: [briefCapable], launches });
+      yield* Effect.gen(function* () {
+        const service = yield* ScheduledTaskService.ScheduledTaskService;
+        const { task } = yield* service.upsert({
+          ...taskInput,
+          id: ScheduledTaskId.make("task:names-no-bot"),
+          modelSelection: modelFor("grok"),
+        });
+        assert.equal(task.botId, null);
+        // A plain task names no provider capability either: it runs exactly as it did before
+        // bots existed, so the launch must not be handed a bot to look up.
+        const ran = yield* service.runNow({ id: task.id });
+        assert.equal(ran.task.lastRunStatus, "succeeded");
+        assert.deepEqual(launches, [{ commandId: launches[0]!.commandId, botId: null }]);
+      }).pipe(Effect.provide(layer));
+    }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+  );
+
+  it.effect("refuses a save that names a provider which cannot carry a brief", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const launches: Array<{ botId: string | null; commandId: string }> = [];
+      yield* insertBot(sql, viki);
+      yield* Effect.gen(function* () {
+        const service = yield* ScheduledTaskService.ScheduledTaskService;
+        const error = yield* service
+          .upsert({
+            ...taskInput,
+            id: ScheduledTaskId.make("task:bot-on-plain-provider"),
+            botId: viki,
+            modelSelection: modelFor("grok"),
+          })
+          .pipe(Effect.flip);
+        assert.isTrue(isScheduledTaskError(error));
+        assert.equal(
+          error.message,
+          "This task cannot run as 'viki': the grok provider cannot carry a bot's brief.",
+        );
+        assert.deepEqual(launches, []);
+        assert.deepEqual((yield* service.list()).tasks, []);
+      }).pipe(Effect.provide(layerWith({ briefCapable: [briefCapable], launches })));
+    }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+  );
+
+  it.effect("pauses a run whose bot was deleted, instead of starting a plain thread", () =>
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const launches: Array<{ botId: string | null; commandId: string }> = [];
+      yield* insertBot(sql, viki);
+      const layer = layerWith({ briefCapable: [briefCapable], launches });
+      yield* Effect.gen(function* () {
+        const service = yield* ScheduledTaskService.ScheduledTaskService;
+        const { task } = yield* service.upsert({
+          ...taskInput,
+          id: ScheduledTaskId.make("task:bot-deleted-since"),
+          botId: viki,
+          modelSelection: modelFor(briefCapable),
+        });
+        // Deleting the bot is a bot-service write; the schedule only has to notice.
+        yield* sql`DELETE FROM bots WHERE bot_id = ${viki}`.pipe(Effect.orDie);
+
+        const ran = yield* service.runNow({ id: task.id });
+        assert.deepEqual(launches, []);
+        assert.equal(ran.task.lastRunStatus, "failed");
+        assert.equal(
+          ran.task.lastRunError,
+          "Paused: cannot run as 'viki' (bot 'viki' no longer exists).",
+        );
+
+        // Paused for good: the row holds no next run, so the due-task poll cannot pick it up.
+        const stored = yield* service.list();
+        assert.equal(stored.tasks[0]?.enabled, false);
+        assert.equal(stored.tasks[0]?.nextRunAt, null);
+        const [row] = yield* sql<{ enabled: number; next_run_at: string | null }>`
+          SELECT enabled, next_run_at FROM scheduled_tasks WHERE task_id = ${task.id}
+        `;
+        assert.equal(row?.enabled, 0);
+        assert.equal(row?.next_run_at, null);
+      }).pipe(Effect.provide(layer));
+    }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+  );
+});
