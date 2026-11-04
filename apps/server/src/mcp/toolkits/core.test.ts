@@ -787,6 +787,7 @@ function scheduledTask(id: string, runtimeMode: "auto" | "full-access"): never {
     enabled: true,
     projectId: "project-a",
     threadId: null,
+    botId: null,
     schedule: { type: "interval", everyMs: 3_600_000 },
     workspaceStrategy: { type: "worktree", baseRef: "main", startFromOrigin: true },
     modelSelection: { instanceId: "codex", model: "gpt-5" },
