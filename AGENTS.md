@@ -1,7 +1,7 @@
 # Botki
 
 Botki is a self-hosted host for **personal agents**: you add a bot, give it a role and a
-brief, and it becomes a chat that is yours — your machine, your model, your data. Bots are
+brief, and it becomes a chat that is yours (your machine, your model, your data). Bots are
 the product. Repositories are something a bot can reach, not what Botki is about.
 
 We are one owner on one machine. Pi is our provider; the others stay because upstream maintains them, and nothing we ship may depend on them. No hosted account, no forge integration, no code editor. Upstream ships an app for people who live in their editor; we ship an app whose center is a list of bots you talk to.
@@ -35,9 +35,9 @@ Unattended runs are the risk, so this file also carries the rules that keep one 
 ## The cut list (fork rule: never reintroduce)
 
 These areas are gone from Botki, and they stay gone: not disabled, not reintroduced, not
-restored to make a build pass — dead code misleads an unattended agent, and upstream fixes
+restored to make a build pass. Dead code misleads an unattended agent, and upstream fixes
 there are never cherry-picked. Where a path below still resolves on `main`, TS0 (#1) has not
-deleted it yet: do not build on it, and do not treat its absence as licence to add it back.
+deleted it yet: do not build on it, and do not treat its absence as license to add it back.
 
 - **Account auth**: Clerk and T3 Connect, `apps/server/src/cloud/` (relay credentials, service launcher). Login is to a server address on loopback.
 - **Guest shares**: hosted empty states.

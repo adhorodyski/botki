@@ -29,8 +29,8 @@ capabilities, never the driver kind.
   adapter actually delivers the turn's `runtimePolicy.botInstructionsPath` (or its file text) to
   the model, as [Pi](../../packages/provider-pi/src/server/status.ts) and
   [Claude](../../apps/server/src/provider/ClaudeProvider.ts) do. Absent means unsupported, and a
-  bot's turn on that provider is refused before the process starts rather than answered as the
-  plain assistant — so claiming it without consuming the path turns a refusal into a wrong answer.
+  bot's turn there is refused before the process starts. Claiming the flag without consuming the
+  path turns that refusal into a wrong answer.
 - **Permission modes.** Offer only modes the provider enforces natively, through
   `supportedRuntimeModes` in the provider presentation ([Grok](../../packages/provider-grok/src/server/status.ts)
   and [Pi](../../packages/provider-pi/src/server/status.ts) are examples). Do not imitate a missing
