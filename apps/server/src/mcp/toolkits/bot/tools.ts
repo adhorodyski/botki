@@ -21,7 +21,7 @@ const dependencies = [
  * bot: the id comes from the calling thread, so a bot cannot write another bot's memory.
  */
 const BotRememberTool = Tool.make("bot_remember", {
-  description: `In a bot's thread, save one durable note for its later conversations. Notes never outrank the brief and share a ${BOT_MEMORY_MAX_CHARS}-character cap: at the cap, shorten what the bot already knows instead of retrying. The owner reads and edits what you store.`,
+  description: `In a bot's thread, save one durable note for its later conversations. Notes share a ${BOT_MEMORY_MAX_CHARS}-character cap: at the cap, shorten what the bot already knows rather than retrying.`,
   parameters: Schema.Struct({
     note: TrimmedNonEmptyString.annotate({
       description: "One thing worth remembering, briefly.",
