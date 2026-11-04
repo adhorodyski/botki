@@ -66,10 +66,10 @@ export function ThreadAutomationsPanel(props: {
     serverEnvironment.scheduledTasksLive({ environmentId: props.environmentId, input: {} }),
   );
   const setTaskEnabled = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
-    label: "thread automation toggle",
+    label: "routine toggle",
   });
   const runTaskNow = useAtomCommand(serverEnvironment.runScheduledTaskNow, {
-    label: "thread automation run now",
+    label: "routine run now",
   });
   const navigate = useNavigate();
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
@@ -103,7 +103,7 @@ export function ThreadAutomationsPanel(props: {
     });
     setBusyTaskId(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure("Could not update automation", squashAtomCommandFailure(result));
+      reportFailure("Could not update routine", squashAtomCommandFailure(result));
     }
   };
 
@@ -120,14 +120,14 @@ export function ThreadAutomationsPanel(props: {
     });
     setBusyTaskId(null);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
-      reportFailure("Could not run automation", squashAtomCommandFailure(result));
+      reportFailure("Could not run routine", squashAtomCommandFailure(result));
     }
   };
 
   return (
     <ThreadDetailsSection
       headingId="thread-details-automations-heading"
-      title="Automations"
+      title="Routines"
       data-thread-automations-panel
       actions={
         <Tooltip>
@@ -137,7 +137,7 @@ export function ThreadAutomationsPanel(props: {
                 size="icon-xs"
                 variant="ghost"
                 part="icon"
-                aria-label="Manage scheduled tasks"
+                aria-label="Manage routines"
                 onClick={() =>
                   void navigate({
                     to: "/settings/scheduled-tasks",
@@ -149,7 +149,7 @@ export function ThreadAutomationsPanel(props: {
               </ThreadDetailsControl>
             }
           />
-          <TooltipPopup>Manage scheduled tasks</TooltipPopup>
+          <TooltipPopup>Manage routines</TooltipPopup>
         </Tooltip>
       }
     >
@@ -203,7 +203,7 @@ export function ThreadAutomationsPanel(props: {
                   </ThreadDetailsControl>
                 }
               />
-              <TooltipPopup>Edit automation</TooltipPopup>
+              <TooltipPopup>Edit routine</TooltipPopup>
             </Tooltip>
             {/* Webhook tasks need a request from their URL. */}
             {task.schedule.type === "webhook" ? null : (
@@ -239,7 +239,7 @@ export function ThreadAutomationsPanel(props: {
       {/* Kept last: the details card treats a section whose last child is empty as empty. */}
       {tasksQuery.error !== null ? (
         <p className="px-2.5 py-1.5 text-2xs text-destructive">
-          Could not load automations: {tasksQuery.error}
+          Could not load routines: {tasksQuery.error}
         </p>
       ) : null}
     </ThreadDetailsSection>

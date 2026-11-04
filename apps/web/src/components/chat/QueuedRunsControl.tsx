@@ -420,7 +420,7 @@ function QueuedMessage(props: {
     attribution === "automation"
       ? {
           icon: CalendarClockIcon,
-          label: "Automation",
+          label: "Routine",
           summary: taskTitle ?? props.previewText.split(/\r?\n/, 1)[0] ?? "",
         }
       : attribution === "agent"
@@ -514,7 +514,7 @@ function QueuedMessage(props: {
                   />
                 }
               >
-                Open automation
+                Open routine
               </InlineButton>
             ) : null}
             <TimelineRowTimestamp

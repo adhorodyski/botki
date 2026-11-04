@@ -164,7 +164,7 @@ it("shows who sent a queued message and folds automation and agent prompts", asy
   await expect.element(page.getByText(/Follow the runbook/)).not.toBeInTheDocument();
   await automation.click();
   await expect.element(page.getByText(/Follow the runbook/)).toBeVisible();
-  await expect.element(page.getByRole("link", { name: "Open automation" })).toBeInTheDocument();
+  await expect.element(page.getByRole("link", { name: "Open routine" })).toBeInTheDocument();
 
   await expect.element(page.getByRole("button", { name: /Release lead/ })).toBeVisible();
   await page.getByRole("button", { name: "Open thread" }).click({ force: true });

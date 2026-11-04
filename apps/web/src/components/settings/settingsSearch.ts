@@ -95,7 +95,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/threads": "Threads",
   "/settings/browser": "Browser",
   "/settings/devices": "Devices",
-  "/settings/scheduled-tasks": "Scheduled tasks",
+  "/settings/scheduled-tasks": "Routines",
   "/settings/source-control": "Source control",
   "/settings/worktrees": "Worktrees",
   "/settings/connections": "Environments",
@@ -342,7 +342,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: "Thread details",
     to: "/settings/appearance",
     searchTerms: [
-      "customize show hide panel card environment editor scripts branch pull request git changes servers automations lineage usage limits 5 hour weekly quota tokens context window",
+      "customize show hide panel card environment editor scripts branch pull request git changes servers routines automations lineage usage limits 5 hour weekly quota tokens context window",
     ],
   },
   {
@@ -1113,6 +1113,14 @@ export const SETTINGS_SEARCH_ITEMS = [
     targetId: "secret-providers",
     searchTerms: ["new 1password vault op cli account"],
     secretsFeatureOnly: true,
+  },
+  {
+    id: "routines",
+    title: "Routines",
+    to: "/settings/scheduled-tasks",
+    searchTerms: [
+      "scheduled tasks schedule cron recurring interval once webhook automation automations bot run",
+    ],
   },
   {
     id: "archive",

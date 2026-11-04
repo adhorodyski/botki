@@ -86,8 +86,7 @@ function QueuedRunSender(props: {
     attribution === "automation"
       ? {
           icon: "calendar.badge.clock" as const,
-          label:
-            tasks.data?.tasks.find((task) => task.id === scheduledTaskId)?.title ?? "Automation",
+          label: tasks.data?.tasks.find((task) => task.id === scheduledTaskId)?.title ?? "Routine",
         }
       : attribution === "agent"
         ? {

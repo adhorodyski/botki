@@ -30,7 +30,15 @@ const SETTINGS_SEARCH_TERMS = {
   SettingsNavigation: ["tabs", "tab order", "reorder", "hide tabs"],
   SettingsKeyboard: ["return key", "send message", "new line", "hardware keyboard"],
   SettingsMicrophone: ["voice", "dictation", "audio input", "bluetooth"],
-  SettingsScheduledTasks: ["automations", "schedule", "cron", "recurring", "webhook"],
+  SettingsScheduledTasks: [
+    "routine",
+    "routines",
+    "automations",
+    "schedule",
+    "cron",
+    "recurring",
+    "webhook",
+  ],
   SettingsProjectOverview: ["project", "overview", "checkouts", "delete project"],
   SettingsOrganization: [
     "project grouping",

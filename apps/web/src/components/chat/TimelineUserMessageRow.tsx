@@ -289,10 +289,10 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
           expanded && "w-full",
         )}
       >
-        <MessageAuthorHeading>Automation</MessageAuthorHeading>
+        <MessageAuthorHeading>Routine</MessageAuthorHeading>
         <FoldedMessageHeader
           icon={CalendarClockIcon}
-          label="Automation"
+          label="Routine"
           summary={summary}
           expanded={expanded}
           onToggle={() => setExpanded((value) => !value)}
@@ -319,7 +319,7 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
                 search={{ environmentId: ctx.activeThreadEnvironmentId, taskId: scheduledTaskId }}
                 className="rounded-sm text-xs text-muted-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
               >
-                Open automation
+                Open routine
               </Link>
             ) : null}
             <TimelineRowTimestamp

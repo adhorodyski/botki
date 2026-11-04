@@ -1443,7 +1443,7 @@ function OpenSenderThreadButton(props: {
   );
 }
 
-/** Automation prompts are long, repeated runbooks; a folded bubble keeps them out of the way. */
+/** Routine prompts are long, repeated runbooks; a folded bubble keeps them out of the way. */
 function ThreadAutomationMessageRow(props: {
   readonly environmentId: EnvironmentId;
   readonly text: string;
@@ -1483,7 +1483,7 @@ function ThreadAutomationMessageRow(props: {
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Automation: ${summary}`}
+          accessibilityLabel={`Routine: ${summary}`}
           accessibilityHint={`Double tap to ${props.expanded ? "hide" : "show"} the prompt.`}
           accessibilityState={{ expanded: props.expanded }}
           hitSlop={4}
@@ -1500,9 +1500,7 @@ function ThreadAutomationMessageRow(props: {
             tintColorClassName="accent-user-bubble-foreground-muted"
             type="monochrome"
           />
-          <Text className="font-t3-medium text-sm text-user-bubble-foreground-muted">
-            Automation
-          </Text>
+          <Text className="font-t3-medium text-sm text-user-bubble-foreground-muted">Routine</Text>
           <Text numberOfLines={1} className="min-w-0 shrink text-sm text-user-bubble-foreground">
             {summary}
           </Text>
@@ -1538,9 +1536,7 @@ function ThreadAutomationMessageRow(props: {
               hitSlop={6}
               onPress={() => openSettings(navigation, "SettingsScheduledTasks")}
             >
-              <Text className="font-t3-medium text-xs text-foreground-secondary">
-                Open automation
-              </Text>
+              <Text className="font-t3-medium text-xs text-foreground-secondary">Open routine</Text>
             </Pressable>
           ) : null}
           <Text className="font-t3-medium text-xs tabular-nums text-foreground-secondary">
