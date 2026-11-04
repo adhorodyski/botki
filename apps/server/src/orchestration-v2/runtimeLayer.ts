@@ -63,8 +63,8 @@ export const layerEventInfrastructure = Layer.mergeAll(
   OrchestrationCommandReceipts.layer,
 );
 
-// The per-turn instructions file a provider session reads. BotService itself is provided with
-// the other server services, so both the WebSocket handlers and this graph share one instance.
+// The per-turn instructions file a provider session reads: the bot's brief from its row, then
+// its notes from `MEMORY.md`. Both are read fresh each turn, so neither writer needs a restart.
 const layerBotInstructions = BotInstructions.layer.pipe(Layer.provide(BriefMemorySource.layer));
 
 const layerRuntimePolicyProvided = RuntimePolicy.layerFromProjectStore.pipe(

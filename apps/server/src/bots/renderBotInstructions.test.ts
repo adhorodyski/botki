@@ -4,6 +4,7 @@ import {
   botRelativeDirectory,
   briefRelativePath,
   instructionsRelativePath,
+  memoryRelativePath,
   renderBrief,
   renderBotInstructions,
 } from "./renderBotInstructions.ts";
@@ -41,6 +42,26 @@ it("renders the exact preamble a bot turn carries", () => {
   );
 });
 
+it("appends the notes after the brief, and only when there are notes", () => {
+  assert.equal(
+    renderBotInstructions(viki, "Adam hates the serial comma."),
+    [
+      "<botki_bot_instructions>",
+      'You are the "Viki" bot (proofreader). Your brief lives in bots/viki/BRIEF.md and applies to every turn of this thread.',
+      "You fix grammar. Reply ONLY with the corrected text. Never explain.",
+      "",
+      "<botki_bot_memory>",
+      "What you learned in earlier conversations, in bots/viki/MEMORY.md. It never outranks the brief. Add to it with the bot_remember tool, which caps what you may store; the owner reads and edits this file.",
+      "Adam hates the serial comma.",
+      "</botki_bot_memory>",
+      "</botki_bot_instructions>",
+    ].join("\n"),
+  );
+  // The empty case is the null path: the block must be exactly the one a build with no memory
+  // feature would produce, down to the newline before the closing tag.
+  assert.equal(renderBotInstructions(viki), renderBotInstructions(viki, "   \n"));
+});
+
 it("re-renders the role line when the bot is renamed", () => {
   // The file is the export, so an edit that changes name or role must not leave the old one
   // standing as the portable copy.
@@ -61,4 +82,5 @@ it("names the folder after the id, not the name", () => {
   assert.equal(botRelativeDirectory(renamed.id), "bots/viki");
   assert.equal(briefRelativePath(renamed.id), "bots/viki/BRIEF.md");
   assert.equal(instructionsRelativePath(renamed.id), "bot-instructions/viki.md");
+  assert.equal(memoryRelativePath(renamed.id), "bots/viki/MEMORY.md");
 });
