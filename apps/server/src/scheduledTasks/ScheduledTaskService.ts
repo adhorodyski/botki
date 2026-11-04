@@ -1,4 +1,5 @@
 import {
+  BotId,
   CommandId,
   MessageId,
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
@@ -45,6 +46,7 @@ import * as Stream from "effect/Stream";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as ThreadLaunchService from "../orchestration-v2/ThreadLaunchService.ts";
+import * as ProviderInstanceRegistry from "../provider/ProviderInstanceRegistry.ts";
 import * as ManagedProjectFolders from "../project/ManagedProjectFolders.ts";
 import * as Metrics from "../observability/Metrics.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
@@ -191,6 +193,7 @@ interface ScheduledTaskRow {
   readonly schedule_json: string;
   readonly project_id: string;
   readonly thread_id: string | null;
+  readonly bot_id: string | null;
   readonly workspace_strategy_json: string;
   readonly model_selection_json: string;
   readonly runtime_mode: string;
@@ -365,6 +368,7 @@ const decodeRow = Effect.fnUntraced(
       schedule,
       projectId: row.project_id,
       threadId: row.thread_id,
+      botId: row.bot_id === null ? null : BotId.make(row.bot_id),
       workspaceStrategy,
       modelSelection,
       runtimeMode: row.runtime_mode,
@@ -433,6 +437,7 @@ export const layer = Layer.effect(
     const crypto = yield* Crypto.Crypto;
     const threadLaunch = yield* ThreadLaunchService.ThreadLaunchService;
     const threadManagement = yield* ThreadManagementService.ThreadManagementService;
+    const providerInstances = yield* ProviderInstanceRegistry.ProviderInstanceRegistry;
     const managedFolders = yield* ManagedProjectFolders.ManagedProjectFolders;
     const secretRequests = yield* SecretRequests.SecretRequests;
     const scheduler = yield* Scheduler.Scheduler;
@@ -474,6 +479,7 @@ export const layer = Layer.effect(
         schedule_json,
         project_id,
         thread_id,
+        bot_id,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -511,6 +517,7 @@ export const layer = Layer.effect(
         schedule_json,
         project_id,
         thread_id,
+        bot_id,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -566,6 +573,55 @@ export const layer = Layer.effect(
       return task;
     });
 
+    // Why a task that names a bot cannot run as that bot, or null when it can. A provider
+    // snapshot with no `supportsBotInstructions` means it cannot, matching the per-turn guard in
+    // RuntimePolicy: absent never gets to answer as a bot and look named.
+    const botRunBlock = Effect.fnUntraced(function* (
+      botId: BotId,
+      modelSelection: ScheduledTask["modelSelection"],
+    ) {
+      // Reads the bots table rather than BotService, so the schedule service keeps its own
+      // database dependency instead of pulling the bot service into the runtime layer graph.
+      const found = yield* sql`SELECT 1 FROM bots WHERE bot_id = ${botId}`.pipe(
+        NodeSqliteClient.readOnly,
+        Effect.mapError((cause) => taskError("Could not load bots.", { cause })),
+      );
+      if (found.length === 0) return `bot '${botId}' no longer exists`;
+      const instance = yield* providerInstances.getInstance(modelSelection.instanceId);
+      const snapshot = instance === undefined ? undefined : yield* instance.snapshot.getSnapshot;
+      return snapshot?.supportsBotInstructions === true
+        ? null
+        : `the ${snapshot?.displayName ?? "selected"} provider cannot carry a bot's brief`;
+    });
+
+    // A bot can be deleted after its task is saved, so the fire re-asks and pauses the task
+    // rather than starting a plain assistant wearing a schedule. Clearing `enabled` and
+    // `next_run_at` is what stops it firing unnamed; the reason goes where the list shows it.
+    const pauseUnnamedRun = Effect.fn("ScheduledTaskService.pauseUnnamedRun")(function* (
+      task: ScheduledTask,
+    ) {
+      if (task.botId === null) return null;
+      const block = yield* botRunBlock(task.botId, task.modelSelection);
+      if (block === null) return null;
+      const now = yield* localNow;
+      const reason = `Paused: cannot run as '${task.botId}' (${block}).`;
+      yield* sql`
+        UPDATE scheduled_tasks
+        SET enabled = 0,
+            next_run_at = NULL,
+            updated_at = ${iso(now)},
+            last_run_status = 'failed',
+            last_run_error = ${reason}
+        WHERE task_id = ${task.id}
+      `.pipe(
+        Effect.mapError((cause) =>
+          taskError("Could not pause schedule task.", { taskId: task.id, cause }),
+        ),
+      );
+      yield* notifyChanged;
+      return reason;
+    });
+
     // Run transitions own run-state columns; settings saves must not overwrite them.
     // Check existence in the write so edits cannot undo concurrent deletion.
     const saveTask = (
@@ -588,6 +644,7 @@ export const layer = Layer.effect(
           schedule_json,
           project_id,
           thread_id,
+          bot_id,
           workspace_strategy_json,
           model_selection_json,
           runtime_mode,
@@ -612,6 +669,7 @@ export const layer = Layer.effect(
           ${JSON.stringify(task.schedule)},
           ${task.projectId},
           ${task.threadId},
+          ${task.botId ?? null},
           ${JSON.stringify(task.workspaceStrategy)},
           ${JSON.stringify(task.modelSelection)},
           ${task.runtimeMode},
@@ -637,6 +695,7 @@ export const layer = Layer.effect(
           schedule_json = excluded.schedule_json,
           project_id = excluded.project_id,
           thread_id = excluded.thread_id,
+          bot_id = excluded.bot_id,
           workspace_strategy_json = excluded.workspace_strategy_json,
           model_selection_json = excluded.model_selection_json,
           runtime_mode = excluded.runtime_mode,
@@ -897,43 +956,51 @@ export const layer = Layer.effect(
               }),
             );
 
+        // A bot deleted after the save must not start a plain assistant wearing a schedule, so
+        // the fresh-thread path asks first and pauses. A bound thread needs no check: it was
+        // stamped at launch, and each of its turns already passes the per-turn guard.
+        const unnamed = active.threadId === null ? yield* pauseUnnamedRun(active) : null;
+
         // Capture defects and interrupts too so dispatch failures still reach markCompleted.
         const result =
-          active.threadId === null
-            ? yield* Effect.exit(
-                threadLaunch
-                  .launch({
-                    commandId,
-                    projectId: active.projectId,
-                    title: active.title,
-                    modelSelection: active.modelSelection,
-                    runtimeMode: active.runtimeMode,
-                    interactionMode: active.interactionMode,
-                    workspaceStrategy: active.workspaceStrategy,
-                    initialMessage: {
-                      messageId,
-                      scheduledTaskId: active.id,
-                      text: prompt,
-                      attachments: [],
-                    },
-                    createdBy: active.createdBy,
-                    creationSource: active.creationSource,
-                  })
-                  .pipe(Effect.map((launched) => launched.threadId)),
-              )
-            : yield* Effect.exit(
-                // The stored selection only seeds fresh threads. A bound run
-                // follows the thread's current provider, so it passes none.
-                sendBound(ThreadId.make(active.threadId), active.projectId, 2).pipe(
-                  Effect.as(ThreadId.make(active.threadId)),
-                ),
-              );
+          unnamed !== null
+            ? Exit.fail(unnamed)
+            : active.threadId === null
+              ? yield* Effect.exit(
+                  threadLaunch
+                    .launch({
+                      commandId,
+                      projectId: active.projectId,
+                      title: active.title,
+                      modelSelection: active.modelSelection,
+                      runtimeMode: active.runtimeMode,
+                      interactionMode: active.interactionMode,
+                      workspaceStrategy: active.workspaceStrategy,
+                      ...(active.botId === null ? {} : { botId: active.botId }),
+                      initialMessage: {
+                        messageId,
+                        scheduledTaskId: active.id,
+                        text: prompt,
+                        attachments: [],
+                      },
+                      createdBy: active.createdBy,
+                      creationSource: active.creationSource,
+                    })
+                    .pipe(Effect.map((launched) => launched.threadId)),
+                )
+              : yield* Effect.exit(
+                  // The stored selection only seeds fresh threads. A bound run
+                  // follows the thread's current provider, so it passes none.
+                  sendBound(ThreadId.make(active.threadId), active.projectId, 2).pipe(
+                    Effect.as(ThreadId.make(active.threadId)),
+                  ),
+                );
 
         const runSucceeded = result._tag === "Success";
         if (webhook !== undefined && runSucceeded) yield* Ref.set(webhook.dispatched, true);
         const completedAt = yield* localNow;
         const lastRunStatus = runSucceeded ? ("succeeded" as const) : ("failed" as const);
-        const lastRunError = runSucceeded ? null : errorMessage(result.cause);
+        const lastRunError = runSucceeded ? null : (unnamed ?? errorMessage(result.cause));
         const threadId = runSucceeded ? result.value : null;
         // One transaction, so an edit cannot land between reading the schedule and
         // writing the next run computed from it. The origin is read first: it reads
@@ -1267,6 +1334,17 @@ export const layer = Layer.effect(
               return { token, secret, secretChanged };
             })
           : { token: null, secret: null, secretChanged: true };
+      // A task naming a bot is refused at the save, so whoever chose the bot is told while the
+      // chooser is still on screen. Only the incoming name is checked: a bot deleted later is
+      // the fire's problem, and this keeps unrelated edits open on an existing task.
+      if (input.botId !== undefined && input.botId !== null) {
+        const block = yield* botRunBlock(input.botId, input.modelSelection);
+        if (block !== null) {
+          return yield* taskError(`This task cannot run as '${input.botId}': ${block}.`, {
+            taskId: id,
+          });
+        }
+      }
       const workspaceStrategy: ScheduledTask["workspaceStrategy"] =
         input.workspaceStrategy.type === "worktree" &&
         (yield* managedFolders.isScratchProject(input.projectId))
@@ -1286,6 +1364,7 @@ export const layer = Layer.effect(
         schedule,
         projectId: input.projectId,
         threadId: input.threadId ?? null,
+        botId: input.botId ?? existingTask?.botId ?? null,
         workspaceStrategy,
         modelSelection: input.modelSelection,
         runtimeMode: input.runtimeMode,

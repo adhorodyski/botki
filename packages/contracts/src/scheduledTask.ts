@@ -1,5 +1,6 @@
 import * as Schema from "effect/Schema";
 
+import { BotId } from "./bot.ts";
 import {
   CommandId,
   ForwardCompatibleArray,
@@ -232,6 +233,8 @@ export const ScheduledTask = Schema.Struct({
   schedule: ScheduledTaskSchedule,
   projectId: ProjectId,
   threadId: Schema.NullOr(ThreadId),
+  /** The bot a fresh thread runs as; null means the task runs as a plain assistant. */
+  botId: Schema.NullOr(BotId),
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   modelSelection: ModelSelection,
   runtimeMode: RuntimeMode,
@@ -269,6 +272,8 @@ export const ScheduledTaskUpsertInput = Schema.Struct({
   schedule: ScheduledTaskUpsertSchedule,
   projectId: ProjectId,
   threadId: Schema.optional(Schema.NullOr(ThreadId)),
+  /** Omit to keep the stored bot; null names none. Rejected unless the bot can carry a brief. */
+  botId: Schema.optional(Schema.NullOr(BotId)),
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   modelSelection: ModelSelection,
   runtimeMode: RuntimeMode,

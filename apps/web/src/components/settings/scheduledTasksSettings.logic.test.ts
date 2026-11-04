@@ -1,4 +1,5 @@
 import {
+  BotId,
   EnvironmentId,
   ProjectId,
   DEFAULT_SERVER_SETTINGS,
@@ -21,6 +22,7 @@ import {
   defaultScheduledTaskProjectId,
   matchesScheduledTaskScope,
   scheduleFromDraft,
+  scheduledTaskBotIdForSave,
   taskToDraft,
 } from "./scheduledTasksSettings.logic";
 
@@ -147,6 +149,7 @@ const legacyTask: ScheduledTask = {
   schedule: { type: "interval", everyMs: 60_000 },
   projectId: ProjectId.make("project"),
   threadId: null,
+  botId: null,
   workspaceStrategy: { type: "worktree", baseRef: "release" },
   modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
   runtimeMode: "full-access",
@@ -167,6 +170,21 @@ describe("editing scheduled task branch settings", () => {
     const draft = taskToDraft(legacyTask);
     expect(draft.baseRef).toBe("release");
     expect(draft.startFromOrigin).toBe(false);
+  });
+});
+
+describe("the bot a scheduled task names", () => {
+  it("carries the name through the form draft", () => {
+    expect(taskToDraft({ ...legacyTask, botId: BotId.make("viki") }).botId).toBe("viki");
+    // Every stored row names a bot or names none, so a plain task opens on "No bot".
+    expect(taskToDraft({ ...legacyTask, botId: null }).botId).toBe("");
+  });
+
+  it("drops the name for a task bound to a conversation", () => {
+    const named = { threadId: "", botId: "viki" };
+    expect(scheduledTaskBotIdForSave(named)).toBe("viki");
+    expect(scheduledTaskBotIdForSave({ ...named, threadId: "older-thread" })).toBeNull();
+    expect(scheduledTaskBotIdForSave({ ...named, botId: "" })).toBeNull();
   });
 });
 
