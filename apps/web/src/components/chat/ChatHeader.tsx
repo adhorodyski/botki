@@ -29,6 +29,8 @@ import { threadEnvironment } from "../../state/threads";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { ProjectFavicon } from "../ProjectFavicon";
+import { BotMonogram } from "../sidebar/SidebarThreadRow";
+import type { ChatBot } from "../../state/bots";
 import {
   WorkspaceBreadcrumb,
   WorkspaceBreadcrumbItem,
@@ -47,6 +49,8 @@ interface ChatHeaderProps {
   activeThreadLinkOrigin?: string | null | undefined;
   isServerThread: boolean;
   activeProject: EnvironmentProject | null;
+  /** Set for a chat with a bot: the bot leads the breadcrumb, and no repo shows. */
+  activeBot?: ChatBot | null;
   parentThreadLink: { threadId: ThreadId; title: string } | null;
   onOpenThread: (threadId: ThreadId) => void;
   rightPanelOpen: boolean;
@@ -74,6 +78,7 @@ export const ChatHeader = memo(function ChatHeader({
   activeThreadLinkOrigin,
   isServerThread,
   activeProject,
+  activeBot = null,
   parentThreadLink,
   onOpenThread,
   rightPanelOpen,
@@ -287,7 +292,28 @@ export const ChatHeader = memo(function ChatHeader({
         ariaLabel="Thread breadcrumb"
         className="flex-1 overflow-clip [overflow-clip-margin:2px]"
       >
-        {activeProject ? (
+        {activeBot ? (
+          <>
+            <WorkspaceBreadcrumbItem className="shrink">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-muted-foreground" />
+                  }
+                >
+                  <BotMonogram name={activeBot.name} className="size-3.5" />
+                  <WorkspaceBreadcrumbText className="max-w-40">
+                    {activeBot.name}
+                  </WorkspaceBreadcrumbText>
+                </TooltipTrigger>
+                <TooltipPopup side="top">{activeBot.name}</TooltipPopup>
+              </Tooltip>
+            </WorkspaceBreadcrumbItem>
+            <WorkspaceBreadcrumbSeparator>
+              <WorkspaceBreadcrumbText>/</WorkspaceBreadcrumbText>
+            </WorkspaceBreadcrumbSeparator>
+          </>
+        ) : activeProject ? (
           <>
             <WorkspaceBreadcrumbItem className="shrink">
               <Tooltip>
