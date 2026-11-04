@@ -53,6 +53,8 @@ interface ThreadDetailsPanelProps extends Pick<
   worktreePath: string | null;
   isServerThread: boolean;
   draftId?: DraftId;
+  /** A chat with a bot: the workspace it lives on is not what the chat is about, so none of it shows. */
+  isBotChat?: boolean;
   activeProjectName: string | undefined;
   activeProjectScripts: ReadonlyArray<ProjectScript> | undefined;
   preferredScriptId: string | null;
@@ -146,13 +148,15 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
       {(density) => {
         // Section flags follow the rows that will render, so no empty section steals the divider rule.
         const show = {
-          environment: density === "full" && visible.environment,
-          openIn: density !== "essential" && visible.openIn && props.showOpenInPicker,
-          scripts: visible.scripts && props.activeProjectScripts !== undefined,
-          branch: props.gitCwd !== null && props.isGitRepo && visible.branch,
+          environment: density === "full" && visible.environment && !props.isBotChat,
+          openIn:
+            density !== "essential" && visible.openIn && props.showOpenInPicker && !props.isBotChat,
+          scripts: visible.scripts && props.activeProjectScripts !== undefined && !props.isBotChat,
+          branch: props.gitCwd !== null && props.isGitRepo && visible.branch && !props.isBotChat,
           git:
             props.gitCwd !== null &&
             props.activeProjectName !== undefined &&
+            !props.isBotChat &&
             (visible.gitActions || (visible.changes && props.isGitRepo)),
         };
         return (

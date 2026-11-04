@@ -515,8 +515,8 @@ function TopStatusIcon(props: { icon: keyof typeof TOP_STATUS_ICONS; className: 
   return <Icon aria-hidden className={cn("shrink-0", props.className)} />;
 }
 
-// A bot has no repo to show a favicon for, so the row carries its initial instead.
-function BotMonogram(props: { name: string; className?: string }) {
+// A bot has no repo to show a favicon for, so anywhere its chat leads carries its initial instead.
+export function BotMonogram(props: { name: string; className?: string }) {
   const initial = props.name.trim().charAt(0).toUpperCase() || "?";
   return (
     <span
