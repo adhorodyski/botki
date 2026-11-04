@@ -1,10 +1,10 @@
 # Botki
 
 Botki is a self-hosted host for **personal agents**: you add a bot, give it a role and a
-brief, and it becomes a chat that is yours — your machine, your model, your data. Bots are
+brief, and it becomes a chat that is yours (your machine, your model, your data). Bots are
 the product. Repositories are something a bot can reach, not what Botki is about.
 
-We are one owner on one machine, with one provider (Pi). No hosted account, no forge integration, no code editor. Upstream ships an app for people who live in their editor; we ship an app whose center is a list of bots you talk to.
+We are one owner on one machine. Pi is our provider; the others stay because upstream maintains them, and nothing we ship may depend on them. No hosted account, no forge integration, no code editor. Upstream ships an app for people who live in their editor; we ship an app whose center is a list of bots you talk to.
 
 ## A note from the owner
 
@@ -27,27 +27,27 @@ Unattended runs are the risk, so this file also carries the rules that keep one 
 - **room** means one thread several bots share. Not built yet; it will replace a thread's single `botId` with participants.
 - **needs-you** means the queue of work that genuinely needs me, and the only screen I read in the morning.
 - **routine** means work a bot takes up on a schedule rather than on message. Scheduled runs exist upstream; wiring them to a bot is not built.
-- **provider** means the agent harness Botki talks to. Ours is Pi; others stay in the tree because upstream maintains them, but nothing we ship may depend on them. Only the Pi adapter carries a bot's brief today — see `docs/internals/adding-a-provider.md`.
+- **provider** means the agent harness Botki talks to. Ours is Pi; the others stay because upstream maintains them, and nothing we ship may depend on them. A brief reaches a turn only on an adapter declaring `supportsBotInstructions` (Pi and Claude today); the rest refuse the turn. See `docs/internals/adding-a-provider.md`.
 - **project** means a repository checkout. It is a workspace a bot may use, not the unit of the UI. Keep new features readable without one; do not make a feature require picking a repo. `projectId` is still required on a thread and the scratch project stands in for bot chats until it becomes optional.
 - **slice** means one issue-sized unit of work that fits in one unattended run and one PR.
 - **spec** means `specs/<issue>-<slug>.md`, a behavior description of one of our own features. See [specs/README.md](specs/README.md).
 
 ## The cut list (fork rule: never reintroduce)
 
-TS0 (#1) removes the areas below. They are to be gone, not disabled: dead code misleads an
-unattended agent, and upstream fixes there are never cherry-picked. **TS0 has not merged yet**,
-so several of these paths still exist on `main`. Read that as pending work, not permission: do
-not build on them, do not add imports of them, and never restore one to make a build pass.
+These areas are gone from Botki, and they stay gone: not disabled, not reintroduced, not
+restored to make a build pass. Dead code misleads an unattended agent, and upstream fixes
+there are never cherry-picked. Where a path below still resolves on `main`, TS0 (#1) has not
+deleted it yet: do not build on it, and do not treat its absence as license to add it back.
 
-- **Account auth**: Clerk and T3 Connect, `apps/web/src/cloud/`, `apps/server/src/cloud/`, `infra/relay/`, desktop Clerk token stores. Login is to a server address on loopback.
-- **Guest shares**: `apps/server/src/guest/`, hosted empty states.
+- **Account auth**: Clerk and T3 Connect, `apps/server/src/cloud/` (relay credentials, service launcher). Login is to a server address on loopback.
+- **Guest shares**: hosted empty states.
 - **Telemetry out**: the PostHog/ingest path. Local `observability/` (file logs, event-loop monitor) stays.
 - **Forge and PR surface**: `packages/source-control-*`, `apps/server/src/{vcs,pullRequest,triage,sourceControl}/`, worktree fan-out, settlement, branch naming.
 - **Editor**: the VS-style file editor and file explorer with save. Stays: snippets, markdown, diff view, terminal as a view, preview and Design Mode.
 - **Provider coding extras**: `watch_pull_request` and PR-review modes. Stays: `create_threads`, `delegate_task`, `schedule_task`, `task_status`, environment tools.
-- **Apps and workflows**: `apps/marketing/`, `infra/task-cache/`, and every release, EAS, relay, and signing workflow.
+- **Apps and workflows**: release, EAS, relay, and signing workflows.
 
-Until TS0 lands, expect the tree to disagree with this list. If a cut area blocks you, stop and open a draft PR with the blocker; do not fix it by reaching into a cut path. If a rule here fights the task in front of you, say so loudly and get a human sign-off before breaking it.
+If a cut area blocks you, stop and open a draft PR with the blocker; do not fix it by reaching into a cut path. If a rule here fights the task in front of you, say so loudly and get a human sign-off before breaking it.
 
 ## Reuse first
 
