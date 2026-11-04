@@ -25,6 +25,12 @@ capabilities, never the driver kind.
   really does. Turn off fork, rollback, steering, or subagent support it lacks; orchestration then
   falls back, for example to portable context handoff for forks. A capability left on that fails
   at runtime is a bug.
+- **Bot briefs.** Set `supportsBotInstructions: true` in the provider presentation only if the
+  adapter actually delivers the turn's `runtimePolicy.botInstructionsPath` (or its file text) to
+  the model, as [Pi](../../packages/provider-pi/src/server/status.ts) and
+  [Claude](../../apps/server/src/provider/ClaudeProvider.ts) do. Absent means unsupported, and a
+  bot's turn on that provider is refused before the process starts rather than answered as the
+  plain assistant — so claiming it without consuming the path turns a refusal into a wrong answer.
 - **Permission modes.** Offer only modes the provider enforces natively, through
   `supportedRuntimeModes` in the provider presentation ([Grok](../../packages/provider-grok/src/server/status.ts)
   and [Pi](../../packages/provider-pi/src/server/status.ts) are examples). Do not imitate a missing

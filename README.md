@@ -3,7 +3,7 @@
 Botki is a self-hosted team of personal agents that are yours. You add a bot, give it a
 job — a role and a brief in your own words — and it becomes a chat you can talk to from any
 device, on your machine, with the model you chose. Not a prompt you paste each time: a bot
-keeps its threads, its brief, and what it learns.
+keeps its threads and its brief, and every chat with it answers as that bot.
 
 It is the open-source version of Grok bots, Claude Duet, and OpenAI Dots. Same idea — bots
 as the thing you talk to, rather than a chat window you reopen — minus the hosted account,
@@ -73,17 +73,21 @@ own. Install and authenticate at least one before your first run:
 | Codex       | [Codex CLI](https://developers.openai.com/codex/cli)        | `codex login`         |
 | OpenCode    | [OpenCode](https://opencode.ai)                             | `opencode auth login` |
 
-Pi is the reference provider: it is what the tests, the fixtures, and the docs assume, and
-today the only adapter that carries a bot's brief into its turns. The others stay in the
-tree because upstream maintains their adapters — a bot on one of them currently runs as the
-plain assistant. Making briefs work everywhere is open work, not a limitation of the design.
+Pi is the reference provider: it is what the tests, the fixtures, and the docs assume. A bot's
+brief reaches its turns on the adapters that declare they can carry one — Pi and Claude today
+— and the others stay in the tree because upstream maintains them. On a provider that cannot,
+a bot's turn is refused and names that provider rather than answering as an unnamed assistant:
+a silently-wrong bot is worse than a stopped one. Carrying briefs on the rest is open work,
+not a limitation of the design.
 
 ## How bots work
 
 A bot is a name, a role, and a brief — the job you wrote for it, in your words. Every
 conversation you start with that bot answers as it: same role, same brief, every turn,
-without you restating anything. Its brief also lives on disk as a plain markdown file, so
-you can version it, edit it from your editor, or let an agent improve it.
+without you restating anything, and an edit to the brief lands on the next turn. A copy is
+written to `bots/<botId>/BRIEF.md` so you can read it or move it between machines, but the
+stored bot is the source: editing that file by hand does not change how the bot behaves. The
+exact behavior is in [specs/19-add-bot.md](./specs/19-add-bot.md).
 
 A chat with a bot is a thread, which means it already gets everything the app does: history,
 provider and model choice per thread, permission modes, checkpoints, and remote access from
@@ -114,5 +118,5 @@ and read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a PR.
 
 ## Status
 
-Early, and moving. The bot is the product and it is where the bugs are. Expect the sidebar
-to change shape as bots become the main thing you see rather than a section of it.
+Early, and moving. The bot is the product and it is where the bugs are. The sidebar is already
+the list of your bot chats — a thread with no bot stays out of it.
