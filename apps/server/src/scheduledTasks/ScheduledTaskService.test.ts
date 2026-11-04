@@ -716,6 +716,10 @@ describe("a scheduled task that names a bot", () => {
           "Paused: cannot run as 'viki' (bot 'viki' no longer exists).",
         );
 
+        // Nothing started, so nothing counts as a run: only a dispatch that reached the
+        // launch raises the count, which keeps the number honest for a task stuck unnamed.
+        assert.equal(ran.task.runCount, task.runCount);
+
         // Paused for good: the row holds no next run, so the due-task poll cannot pick it up.
         const stored = yield* service.list();
         assert.equal(stored.tasks[0]?.enabled, false);
