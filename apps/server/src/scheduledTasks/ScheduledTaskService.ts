@@ -1,4 +1,5 @@
 import {
+  BotId,
   CommandId,
   MessageId,
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
@@ -191,6 +192,7 @@ interface ScheduledTaskRow {
   readonly schedule_json: string;
   readonly project_id: string;
   readonly thread_id: string | null;
+  readonly bot_id: string | null;
   readonly workspace_strategy_json: string;
   readonly model_selection_json: string;
   readonly runtime_mode: string;
@@ -365,6 +367,7 @@ const decodeRow = Effect.fnUntraced(
       schedule,
       projectId: row.project_id,
       threadId: row.thread_id,
+      botId: row.bot_id === null ? null : BotId.make(row.bot_id),
       workspaceStrategy,
       modelSelection,
       runtimeMode: row.runtime_mode,
@@ -474,6 +477,7 @@ export const layer = Layer.effect(
         schedule_json,
         project_id,
         thread_id,
+        bot_id,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -511,6 +515,7 @@ export const layer = Layer.effect(
         schedule_json,
         project_id,
         thread_id,
+        bot_id,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -588,6 +593,7 @@ export const layer = Layer.effect(
           schedule_json,
           project_id,
           thread_id,
+          bot_id,
           workspace_strategy_json,
           model_selection_json,
           runtime_mode,
@@ -612,6 +618,7 @@ export const layer = Layer.effect(
           ${JSON.stringify(task.schedule)},
           ${task.projectId},
           ${task.threadId},
+          ${task.botId ?? null},
           ${JSON.stringify(task.workspaceStrategy)},
           ${JSON.stringify(task.modelSelection)},
           ${task.runtimeMode},
@@ -637,6 +644,7 @@ export const layer = Layer.effect(
           schedule_json = excluded.schedule_json,
           project_id = excluded.project_id,
           thread_id = excluded.thread_id,
+          bot_id = excluded.bot_id,
           workspace_strategy_json = excluded.workspace_strategy_json,
           model_selection_json = excluded.model_selection_json,
           runtime_mode = excluded.runtime_mode,
@@ -910,6 +918,7 @@ export const layer = Layer.effect(
                     runtimeMode: active.runtimeMode,
                     interactionMode: active.interactionMode,
                     workspaceStrategy: active.workspaceStrategy,
+                    ...(active.botId === null ? {} : { botId: active.botId }),
                     initialMessage: {
                       messageId,
                       scheduledTaskId: active.id,
@@ -1286,6 +1295,7 @@ export const layer = Layer.effect(
         schedule,
         projectId: input.projectId,
         threadId: input.threadId ?? null,
+        botId: input.botId ?? existingTask?.botId ?? null,
         workspaceStrategy,
         modelSelection: input.modelSelection,
         runtimeMode: input.runtimeMode,
