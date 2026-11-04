@@ -112,6 +112,10 @@ export const RPC_REQUIRED_SCOPES = {
   // A bot's name, role, and brief steer every turn its threads run.
   [WS_METHODS.botsList]: AuthOrchestrationReadScope,
   [WS_METHODS.botsMutate]: AuthOrchestrationOperateScope,
+  // Memory is what a bot was told about its own past; reading it is a read, rewriting it
+  // changes what every later turn of the bot's threads is told.
+  [WS_METHODS.botsReadMemory]: AuthOrchestrationReadScope,
+  [WS_METHODS.botsSaveMemory]: AuthOrchestrationOperateScope,
   [WS_METHODS.secretsAnswerRequest]: AuthOrchestrationOperateScope,
   // Delivery logs hold request bodies, so they need the same scope as the URL.
   [WS_METHODS.scheduledTasksListWebhookDeliveries]: AuthOrchestrationOperateScope,

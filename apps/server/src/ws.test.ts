@@ -539,6 +539,8 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(BotService.BotService)({
     list: () => Effect.succeed([]),
     briefPath: () => "/unused/BRIEF.md",
+    memoryPath: () => "/unused/MEMORY.md",
+    readMemory: () => Effect.succeed(""),
   }),
   Layer.mock(BackgroundPolicy.BackgroundPolicy)({}),
   Layer.mock(CheckpointDiffQuery.CheckpointDiffQuery)({}),

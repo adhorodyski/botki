@@ -86,6 +86,72 @@ export async function mutateBots(
   };
 }
 
+// Memory is a file the bot may have appended to a moment ago, so it is re-read on opening
+// rather than trusted from the last time the screen was up.
+const botMemory = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:bots:memory",
+  tag: WS_METHODS.botsReadMemory,
+  staleTimeMs: 0,
+});
+
+const botsSaveMemory = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:bots:saveMemory",
+  tag: WS_METHODS.botsSaveMemory,
+});
+
+export interface BotMemoryView {
+  readonly memory: string;
+  readonly maxChars: number;
+}
+
+export interface BotMemorySaveResult extends BotMemoryView {
+  readonly error: string | null;
+}
+
+/** What one bot has learned, plus its cap. Pass null until a server is connected. */
+export function useBotMemory(
+  environmentId: EnvironmentId | null,
+  botId: BotId | null,
+): {
+  readonly memory: string;
+  readonly maxChars: number;
+  readonly isPending: boolean;
+  readonly refresh: () => void;
+} {
+  const query = useEnvironmentQuery(
+    environmentId === null || botId === null
+      ? null
+      : botMemory({ environmentId, input: { id: botId } }),
+  );
+  return {
+    memory: query.data?.memory ?? "",
+    maxChars: query.data?.maxChars ?? 0,
+    isPending: query.isPending,
+    refresh: query.refresh,
+  };
+}
+
+/** Replaces a bot's memory. The server refuses past the cap, and the reason comes back as text. */
+export async function saveBotMemory(
+  environmentId: EnvironmentId,
+  botId: BotId,
+  memory: string,
+): Promise<BotMemorySaveResult> {
+  const result = await runAtomCommand(
+    appAtomRegistry,
+    botsSaveMemory,
+    { environmentId, input: { id: botId, memory } },
+    { label: "Save memory", reportFailure: false },
+  );
+  if (result._tag === "Success") return { ...result.value, error: null };
+  const error = squashAtomCommandFailure(result);
+  return {
+    memory,
+    maxChars: 0,
+    error: error instanceof Error ? error.message : "Could not save the bot's memory.",
+  };
+}
+
 /** The bots configured on one environment. Pass null until a server is connected. */
 export function useBots(environmentId: EnvironmentId | null) {
   const query = useEnvironmentQuery(

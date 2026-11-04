@@ -30,17 +30,27 @@ its chats remain, but its folder and everything written in it stays on disk.
 **On disk.** Each bot has `<home>/bots/<id>/BRIEF.md`: a title line naming the bot and its role,
 then the brief as written. Editing name, role, or brief rewrites that file. It is a copy for
 reading and moving between machines, not the source, so editing it by hand does not change how
-the bot behaves.
+the bot behaves. Alongside it sits `MEMORY.md`, which works the other way round: the bot writes
+it and the file itself is the source, so a turn reads exactly what is there.
 
 **What a chat shows.** A bot's own chat names the bot and nothing else: its initial and name sit
 where the project crumb would, an empty composer asks what the bot should do, and the worktree,
 branch, project scripts, `Open in`, git actions, and diff controls are absent. Threads with no bot
 keep all of those exactly as they were.
 
+**What a bot remembers.** A bot can save one short note about what it learned, and that note
+reaches its later conversations — a different chat with the same bot starts knowing it. What it
+has learned always arrives after the brief and never outranks it, it is capped at 4,000
+characters, and a write past the cap is refused with the reason rather than quietly shortened,
+so a growing file can never push the brief out of a turn. **Settings → Bots** shows what each
+bot knows and lets you rewrite it or empty it; your wording then survives whatever the bot
+saves next. Nothing is inferred from your chats, and one bot never reads another's notes.
+
 **Limits today.** A brief reaches a turn on providers that carry one; a chat whose provider
 cannot will refuse the turn and name that provider rather than answer as an unnamed assistant —
 including the dev Replay provider, which replays answers rather than generating them. One bot
 per conversation — a room where several bots share one thread is not built. A chat still lives
 on a workspace behind the scenes; only its name is hidden, so a bot's turn still runs in that
-checkout. Bots have no avatars and no memory between chats: everything a bot knows comes from
-its brief. Bots are configured per server, on the machine running it.
+checkout. A bot writes its notes when asked to, not on its own: nothing distils a past
+conversation into memory, and nothing searches one. Bots have no avatars. Bots are configured
+per server, on the machine running it.

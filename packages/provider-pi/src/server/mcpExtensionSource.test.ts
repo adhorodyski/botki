@@ -284,6 +284,51 @@ describe("Pi MCP tool exposure", () => {
     assert.equal(bridge.requests.at(-1)?.method, "tools/call");
   });
 
+  it("calls bot_remember under either separator on a bot thread", async () => {
+    const bridge = await loadMcpBridge({
+      modern: true,
+      toolSearchAvailable: true,
+      withBotRemember: true,
+      botInstructionsFile: "/fixture/absent.md",
+    });
+    await bridge.handlers.get("session_start")!({ systemPrompt: "" }, discoveryContext);
+    assert.deepEqual(
+      bridge.tools
+        .filter((tool) => tool.name.endsWith("bot_remember"))
+        .map((tool) => [tool.name, tool.exposure]),
+      [
+        ["mcp__t3-code__bot_remember", "direct"],
+        ["mcp__t3_code__bot_remember", "direct"],
+      ],
+    );
+    assert.equal(
+      bridge.tools.find((tool) => tool.name === "mcp__t3-code__preview_snapshot")?.exposure,
+      "deferred",
+    );
+    for (const name of ["mcp__t3-code__bot_remember", "mcp__t3_code__bot_remember"]) {
+      await bridge.tools
+        .find((tool) => tool.name === name)!
+        .execute("call-1", { note: "We ship with a cap." });
+      assert.deepEqual(bridge.requests.at(-1)?.params, {
+        name: "bot_remember",
+        arguments: { note: "We ship with a cap." },
+      });
+    }
+  });
+
+  it("keeps bot_remember deferred and its canonical name hidden off a bot thread", async () => {
+    const bridge = await loadMcpBridge({
+      modern: true,
+      toolSearchAvailable: true,
+      withBotRemember: true,
+    });
+    await bridge.handlers.get("session_start")!({ systemPrompt: "" }, discoveryContext);
+    assert.equal(
+      bridge.tools.find((tool) => tool.name === "mcp__t3-code__bot_remember")?.exposure,
+      "deferred",
+    );
+  });
+
   it("restores gateway declarations after model switches and older tree loadouts without excluded tools", async () => {
     const bridge = await loadMcpBridge({
       modern: true,

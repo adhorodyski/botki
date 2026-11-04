@@ -393,11 +393,22 @@ import {
 } from "./sourceControl.ts";
 import { VcsError } from "./vcs.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
-import { Bot, BotMutation, BotMutationError, BotSnapshot } from "./bot.ts";
+import {
+  Bot,
+  BotMemoryError,
+  BotMemoryReadInput,
+  BotMemoryResult,
+  BotMemorySaveInput,
+  BotMutation,
+  BotMutationError,
+  BotSnapshot,
+} from "./bot.ts";
 
 export const WS_METHODS = {
   botsList: "bots.list",
   botsMutate: "bots.mutate",
+  botsReadMemory: "bots.readMemory",
+  botsSaveMemory: "bots.saveMemory",
   projectsListEntries: "projects.listEntries",
   projectsListIgnoredFiles: "projects.listIgnoredFiles",
   projectsReadFile: "projects.readFile",
@@ -1335,6 +1346,18 @@ const WsBotsMutateRpc = Rpc.make(WS_METHODS.botsMutate, {
   error: Schema.Union([BotMutationError, EnvironmentAuthorizationError]),
 });
 
+const WsBotsReadMemoryRpc = Rpc.make(WS_METHODS.botsReadMemory, {
+  payload: BotMemoryReadInput,
+  success: BotMemoryResult,
+  error: Schema.Union([BotMemoryError, EnvironmentAuthorizationError]),
+});
+
+const WsBotsSaveMemoryRpc = Rpc.make(WS_METHODS.botsSaveMemory, {
+  payload: BotMemorySaveInput,
+  success: BotMemoryResult,
+  error: Schema.Union([BotMemoryError, EnvironmentAuthorizationError]),
+});
+
 const WsShellOpenInEditorRpc = Rpc.make(WS_METHODS.shellOpenInEditor, {
   payload: LaunchEditorInput,
   error: Schema.Union([ExternalLauncherError, EnvironmentAuthorizationError]),
@@ -2075,6 +2098,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsProjectsMutateRpc,
   WsBotsListRpc,
   WsBotsMutateRpc,
+  WsBotsReadMemoryRpc,
+  WsBotsSaveMemoryRpc,
   WsShellOpenInEditorRpc,
   WsFilesystemBrowseRpc,
   WsFilesystemGetMetadataRpc,
