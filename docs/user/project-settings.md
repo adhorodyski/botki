@@ -76,34 +76,36 @@ to override its environment defaults. Worktree directories keep their original n
 If generation fails, or a custom name is invalid or already taken, the temporary
 branch name remains.
 
-## Scheduled tasks on mobile
+## Routines on mobile
 
-Open **Settings → Scheduled tasks** to create scheduled tasks or manage existing
-ones across your connected environments. Use the settings filter to narrow the
-list by environment or project. Each task runs on the environment you choose,
-using its project, model, and workspace settings. Fixed-time schedules use that
-environment's time zone, which may differ from your phone's. Choose **Once**
-to run a task a single time at a date and time in your own time zone. If the
-environment is offline then, the task runs when it is back.
+Open **Settings → Routines** to create routines or manage existing ones across
+your connected environments. Use the settings filter to narrow the list by
+environment or project. Each routine runs on the environment you choose, using
+its project, model, and workspace settings. Fixed-time schedules use that
+environment's time zone, which may differ from your phone's. Choose **Once** to
+run a routine a single time at a date and time in your own time zone. If the
+environment is offline then, the routine runs when it is back.
 
-Deleting a thread also deletes tasks that post into that thread. Tasks that start
-a new thread on each run survive deletion of their previous threads.
+A routine can name a bot, and then each run starts a chat as that bot with its
+brief in play.
 
-You can edit, pause, resume, run immediately, or delete a task from the list.
-Webhook tasks only run when their URL is called, so they can't be run
+Deleting a thread also deletes routines that post into that thread. Routines that
+start a new thread on each run survive deletion of their previous threads.
+
+You can edit, pause, resume, run immediately, or delete a routine from the list.
+Webhook routines only run when their URL is called, so they can't be run
 immediately.
 Leaving an edited form asks before discarding unsaved changes.
 
-## Webhook automations
+## Webhook routines
 
-In **Settings → Scheduled tasks**, choose **On webhook**
-as a task's schedule to run it whenever another service calls its URL, such as
-GitHub on a new pull request or a CI job that failed. The caller has to reach
-your server, so a service on the internet needs a route to it that it can
-actually dial: your own reverse proxy, a tailnet address, or a port forward.
-[Remote access](remote-access.md) covers the routes. After you save the task,
-copy its URL from the editor. When the server has no reachable address, the
-editor shows only the URL's path.
+In **Settings → Routines**, choose **On webhook** as a routine's schedule to run
+it whenever another service calls its URL, such as GitHub on a new pull request
+or a CI job that failed. The caller has to reach your server, so a service on the
+internet needs a route to it that it can actually dial: your own reverse proxy, a
+tailnet address, or a port forward. [Remote access](remote-access.md) covers the
+routes. After you save the routine, copy its URL from the editor. When the server
+has no reachable address, the editor shows only the URL's path.
 **Rotate** replaces the URL and the old one stops working.
 
 The prompt decides what the agent sees. Placeholders pull values out of the
@@ -132,7 +134,7 @@ one on.
 
 To run only for some requests, add **Filters**. Each one tests a value named
 like a placeholder, without the braces, such as `headers.x-github-event` equals
-`pull_request` or `body.action` is one of `opened, reopened`. A task runs only
+`pull_request` or `body.action` is one of `opened, reopened`. A routine runs only
 when every filter matches; other requests are answered normally, logged as
 **Filtered** with the first filter that failed, and start nothing. Values
 compare as text, and a value that is an object or a list only passes
@@ -140,7 +142,7 @@ compare as text, and a value that is an object or a list only passes
 a comma or start or end with a space.
 
 To suppress repeated deliveries, set a **Duplicate request key** template, such as
-`{{headers.delivery-id}}`. The same key is ignored for seven days per task.
+`{{headers.delivery-id}}`. The same key is ignored for seven days per routine.
 To combine a burst, set a **Coalesce key**, such as `{{body.id}}`, and a window
 of 10–3600 seconds (120 by default). One run uses the latest body, headers,
 and query when the window from the first delivery closes; later requests
@@ -148,12 +150,12 @@ do not extend it. Pending windows survive a server restart. Keys must contain
 request placeholders; if any placeholder is missing, or the render is empty,
 that key's rule is skipped. Clear the templates to turn dedupe off.
 
-Duplicate and coalesced log entries share a limit of 10 per task per minute.
+Duplicate and coalesced log entries share a limit of 10 per routine per minute.
 Additional deliveries are accepted without a log entry, and coalesced deliveries
 always replace the persisted payload. Coalesced updates count toward a separate
 60-per-minute validation limit; exceeding it receives HTTP 429.
 
-On desktop and web, pick **Deliveries** from a task's menu to see recent
+On desktop and web, pick **Deliveries** from a routine's menu to see recent
 requests and the prompt each one produced.
 
 Nothing is held up front for an offline environment: if the environment is
@@ -161,7 +163,7 @@ down, the sender gets an error and nothing runs, so redeliver from the sender,
 such as GitHub's **Recent Deliveries**, once it is back. Request bodies never sit
 on someone else's queue because there is no queue; the request reaches your
 machine or it does not. To skip requests the sender retried for too long, set
-**Skip requests older than** on the task.
+**Skip requests older than** on the routine.
 
 ## Defaults and inheritance
 
