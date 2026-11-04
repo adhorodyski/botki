@@ -51,6 +51,8 @@ export async function loadMcpBridge(
     readonly inputSchema?: Record<string, unknown>;
     /** File a bot thread's session reads its instructions from; omit for a plain thread. */
     readonly botInstructionsFile?: string;
+    /** Serve the memory write tool, as the real server does for every session. */
+    readonly withBotRemember?: boolean;
   } = {},
 ) {
   const handlers = new Map<string, AgentStartHook>();
@@ -77,6 +79,9 @@ export async function loadMcpBridge(
       annotations: { readOnlyHint: false },
     },
     { name: "preview_snapshot", description: "Inspect the collaborative browser." },
+    ...(options.withBotRemember === true
+      ? [{ name: "bot_remember", description: "Remember one durable fact." }]
+      : []),
   ].map((tool) => ({
     ...tool,
     inputSchema: options.inputSchema ?? { type: "object", properties: {} },
