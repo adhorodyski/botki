@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import type {
-  BotId,
   EnvironmentId,
   ModelSelection,
   OrchestrationV2ThreadLaunchWorkspaceStrategy,
@@ -83,6 +82,7 @@ import {
   defaultScheduledTaskProjectId,
   matchesScheduledTaskScope,
   scheduleFromDraft,
+  scheduledTaskBotIdForSave,
   scheduledTaskDefaultModel,
   taskToDraft,
   type DraftState,
@@ -1334,7 +1334,7 @@ function ScheduledTaskEditorForm({
       schedule,
       projectId: selectedProjectId as ProjectId,
       threadId: draft.threadId ? (draft.threadId as ThreadId) : null,
-      botId: draft.threadId === "" && draft.botId !== "" ? (draft.botId as BotId) : null,
+      botId: scheduledTaskBotIdForSave(draft),
       workspaceStrategy,
       modelSelection,
       runtimeMode: draft.runtimeMode,

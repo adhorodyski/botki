@@ -22,6 +22,7 @@ import {
   defaultScheduledTaskProjectId,
   matchesScheduledTaskScope,
   scheduleFromDraft,
+  scheduledTaskBotIdForSave,
   taskToDraft,
 } from "./scheduledTasksSettings.logic";
 
@@ -177,6 +178,13 @@ describe("the bot a scheduled task names", () => {
     expect(taskToDraft({ ...legacyTask, botId: BotId.make("viki") }).botId).toBe("viki");
     // Every stored row names a bot or names none, so a plain task opens on "No bot".
     expect(taskToDraft({ ...legacyTask, botId: null }).botId).toBe("");
+  });
+
+  it("drops the name for a task bound to a conversation", () => {
+    const named = { threadId: "", botId: "viki" };
+    expect(scheduledTaskBotIdForSave(named)).toBe("viki");
+    expect(scheduledTaskBotIdForSave({ ...named, threadId: "older-thread" })).toBeNull();
+    expect(scheduledTaskBotIdForSave({ ...named, botId: "" })).toBeNull();
   });
 });
 

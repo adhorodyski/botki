@@ -1,5 +1,6 @@
 import { isWebhookDedupeTemplate } from "@t3tools/contracts";
 import {
+  type BotId,
   EnvironmentId,
   MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
   type ProjectId,
@@ -349,4 +350,16 @@ export function defaultScheduledTaskProjectId<
       (scopedToProject ? scopedProjects[0] : undefined)
     )?.id ?? ""
   );
+}
+
+/**
+ * The bot a save should name. A task bound to a conversation continues a chat that already has
+ * an owner, so a bot named on such a task would be a second owner the server ignores — and the
+ * chooser hides itself for exactly that reason.
+ */
+export function scheduledTaskBotIdForSave(
+  draft: Pick<DraftState, "threadId" | "botId">,
+): BotId | null {
+  if (draft.threadId !== "" || draft.botId === "") return null;
+  return draft.botId as BotId;
 }
