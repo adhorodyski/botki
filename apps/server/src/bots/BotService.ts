@@ -1,5 +1,10 @@
 import type { Bot, BotId, BotMutation } from "@t3tools/contracts";
-import { BotMutationError, botIdFromName } from "@t3tools/contracts";
+import {
+  BOT_MEMORY_MAX_CHARS,
+  BotMemoryError,
+  BotMutationError,
+  botIdFromName,
+} from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -11,6 +16,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as SqlError from "effect/sql/SqlError";
 
 import * as ServerConfig from "../config.ts";
+import { appendNote, makeBotMemoryFile, memoryFits } from "./botMemoryText.ts";
 import { briefRelativePath, renderBrief } from "./renderBotInstructions.ts";
 
 interface BotRow {
@@ -59,6 +65,20 @@ export interface BotServiceShape {
   readonly get: (botId: BotId) => Effect.Effect<Bot, BotServiceError | BotMutationError>;
   /** Absolute path of a bot's canonical brief, whether or not the file exists yet. */
   readonly briefPath: (botId: BotId) => string;
+  /** Absolute path of a bot's memory file, whether or not it exists yet. */
+  readonly memoryPath: (botId: BotId) => string;
+  /** What the bot has learned, verbatim, or "" when it has written nothing. Never the brief. */
+  readonly readMemory: (botId: BotId) => Effect.Effect<string>;
+  /** The bot's own write: one note appended under what it knows. Refused past the cap. */
+  readonly appendMemoryNote: (
+    botId: BotId,
+    note: string,
+  ) => Effect.Effect<string, BotMemoryError | BotServiceError | BotMutationError>;
+  /** Owner-written replacement for a bot's memory; empty clears it. Same cap, same refusal. */
+  readonly saveMemory: (
+    botId: BotId,
+    memory: string,
+  ) => Effect.Effect<string, BotMemoryError | BotServiceError | BotMutationError>;
   /** Rewrites `BRIEF.md` on create and edit, so the export cannot drift from the row. */
   readonly mutate: (
     mutation: BotMutation,
@@ -92,6 +112,40 @@ export const layer: Layer.Layer<
           Effect.mapError(botServiceError),
         );
     };
+
+    const memoryFile = makeBotMemoryFile(fileSystem, path, baseDir);
+    const memoryPath = memoryFile.pathOf;
+    const readMemory = memoryFile.read;
+
+    const tooLarge = (botId: BotId, chars: number) =>
+      new BotMemoryError({
+        botId,
+        failure: "bot_memory_too_large",
+        message:
+          `That would make ${chars} characters of memory, over the ${BOT_MEMORY_MAX_CHARS} limit. ` +
+          "Shorten it, or delete something the bot has learned first.",
+      });
+
+    // Both writers meet the same cap and are refused rather than trimmed. The row goes first:
+    // memory for a bot no row names would leave a file that no turn can ever read.
+    const writeMemory = Effect.fn("BotService.writeMemory")(function* (botId: BotId, text: string) {
+      if (!memoryFits(text)) return yield* tooLarge(botId, text.length);
+      return yield* memoryFile.write(botId, text);
+    });
+
+    const saveMemory = Effect.fn("BotService.saveMemory")(function* (botId: BotId, memory: string) {
+      yield* get(botId);
+      return yield* writeMemory(botId, memory.trim());
+    });
+
+    const appendMemoryNote = Effect.fn("BotService.appendMemoryNote")(function* (
+      botId: BotId,
+      note: string,
+    ) {
+      const appended = appendNote(yield* readMemory(botId), note);
+      yield* get(botId);
+      return yield* writeMemory(botId, appended);
+    });
 
     const list = Effect.fn("BotService.list")(function* () {
       const rows = yield* sql<BotRow>`
@@ -211,6 +265,15 @@ export const layer: Layer.Layer<
       }
     });
 
-    return BotService.of({ list, get, mutate, briefPath });
+    return BotService.of({
+      list,
+      get,
+      mutate,
+      briefPath,
+      memoryPath,
+      readMemory,
+      saveMemory,
+      appendMemoryNote,
+    });
   }),
 );

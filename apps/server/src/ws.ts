@@ -75,6 +75,9 @@ import {
   ProjectSearchEntriesError,
   ProjectWriteFileError,
   BotMutationError,
+  BOT_MEMORY_MAX_CHARS,
+  type BotId,
+  BotMemoryError,
   ProjectMutationError,
   ProviderUploadFeedbackError,
   ProviderSetupError,
@@ -123,6 +126,7 @@ import * as DocumentText from "./provider/DocumentText.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
 import * as BotService from "./bots/BotService.ts";
+import { isBotMemoryError } from "./bots/botMemoryText.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
 import {
   bufferShellLiveStream,
@@ -1326,6 +1330,18 @@ export const layerWsRpc = (
               message: "Failed to change the bot.",
               cause,
             });
+      // The service's own refusals carry the reason worth showing. A missing row says so; any
+      // other failure reads as an unwritable file rather than claiming the bot is missing.
+      const botMemoryFailure =
+        (botId: BotId) =>
+        (cause: unknown): BotMemoryError =>
+          isBotMemoryError(cause)
+            ? cause
+            : new BotMemoryError({
+                botId,
+                failure: isBotMutationError(cause) ? "bot_not_found" : "bot_memory_unwritable",
+                cause,
+              });
       const secretRequests = yield* SecretRequests.SecretRequests;
       const pullRequests = yield* PullRequestService.PullRequestService;
       const reviewGuides = yield* PullRequestReviewGuideService.PullRequestReviewGuideService;
@@ -2216,6 +2232,17 @@ export const layerWsRpc = (
                 isBotMutationError(cause) ? cause : botMutationError(mutation, cause),
               ),
             ),
+        // No row check here: only listed bots reach this screen, and reading is how the owner
+        // sees what a turn is told.
+        [WS_METHODS.botsReadMemory]: ({ id }) =>
+          bots
+            .readMemory(id)
+            .pipe(Effect.map((memory) => ({ memory, maxChars: BOT_MEMORY_MAX_CHARS }))),
+        [WS_METHODS.botsSaveMemory]: ({ id, memory }) =>
+          bots.saveMemory(id, memory).pipe(
+            Effect.map((saved) => ({ memory: saved, maxChars: BOT_MEMORY_MAX_CHARS })),
+            Effect.mapError(botMemoryFailure(id)),
+          ),
         [WS_METHODS.scheduledTasksSubscribe]: (_input) =>
           scheduledTasks.subscribeList().pipe(Stream.map(withVisibleWebhookUrls)),
         [WS_METHODS.scheduledTasksUpsert]: (input) => scheduledTasks.upsert(input),

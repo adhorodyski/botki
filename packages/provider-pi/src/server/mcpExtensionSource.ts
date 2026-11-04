@@ -26,6 +26,7 @@ const RUNTIME_MODE_ENV = ${JSON.stringify(T3_PI_RUNTIME_MODE_ENV)};
 const EXTENSION_PATH_ENV = ${JSON.stringify(T3_PI_MCP_EXTENSION_PATH_ENV)};
 const BOT_INSTRUCTIONS_ENV = ${JSON.stringify(T3_PI_BOT_INSTRUCTIONS_ENV)};
 const BOT_INSTRUCTIONS_SECTION = ${JSON.stringify(BOT_INSTRUCTIONS_SECTION_NAME)};
+const BOT_REMEMBER_TOOL = "bot_remember";
 const ORCHESTRATION_INSTRUCTIONS = ${JSON.stringify(T3_CODE_ORCHESTRATION_INSTRUCTIONS.trim())};
 const PROTOCOL = "2025-06-18";
 const READ_ONLY_TOOLS = new Set(["read", "grep", "find", "ls"]);
@@ -380,6 +381,10 @@ export default async function t3McpExtension(pi: ExtensionAPI) {
   // bridge as the credential owner: mcp.json overrides native registrations.
   const supportsExposure = "registerMcpServer" in pi && typeof pi.registerMcpServer === "function";
   const directTools = new Set(["orchestrator_capabilities", "delegate_task", "task_status"]);
+  // A bot's brief names bot_remember, and a bot session must be able to call it. Pi shows MCP
+  // tools as mcp__<server>__<tool>, so models guess either separator; deferred exposure and the
+  // hidden alias both answer "not found", and the bot then stores elsewhere and claims it kept.
+  const isBotSession = env(BOT_INSTRUCTIONS_ENV) !== undefined;
   let deferOptionalTools = supportsExposure;
   let catalog: ReadonlyArray<McpTool> = [];
 
@@ -395,8 +400,9 @@ export default async function t3McpExtension(pi: ExtensionAPI) {
       const name = tool.name;
       for (const prefix of prefixes) {
         if (tool.annotations?.readOnlyHint === true) readOnlyMcpTools.add(\`\${prefix}\${name}\`);
-        const exposure = prefix === "mcp__t3_code__" ? "hidden" :
-          deferOptionalTools && !directTools.has(name) ? "deferred" : "direct";
+        const botRemember = isBotSession && name === BOT_REMEMBER_TOOL;
+        const exposure = prefix === "mcp__t3_code__" && !botRemember ? "hidden" :
+          deferOptionalTools && !directTools.has(name) && !botRemember ? "deferred" : "direct";
         pi.registerTool({
           name: \`\${prefix}\${name}\`,
           label: name,

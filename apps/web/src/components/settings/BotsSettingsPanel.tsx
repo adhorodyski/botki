@@ -4,10 +4,51 @@ import { useState } from "react";
 
 import { BotDialog } from "../BotDialog";
 import { Button } from "../ui/button";
-import { useBots } from "../../state/bots";
+import { useBots, useBotMemory } from "../../state/bots";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsLayout";
 import { Spinner } from "~/components/ui/spinner";
+
+/**
+ * One bot's row, in its own component so its memory read is a hook of its own. The notes are
+ * shown here rather than only inside the dialog: memory the owner has to open something to see
+ * is memory they will not read.
+ */
+function BotRow({
+  bot,
+  environmentId,
+  onEdit,
+}: {
+  readonly bot: Bot;
+  readonly environmentId: Parameters<typeof useBotMemory>[0];
+  readonly onEdit: () => void;
+}) {
+  const { memory } = useBotMemory(environmentId, bot.id);
+  return (
+    <SettingsRow
+      title={bot.name}
+      description={bot.brief.trim() || bot.role}
+      status={<span className="text-muted-foreground text-sm">{bot.role}</span>}
+      control={
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          data-testid={`settings-bot-${bot.id}-edit`}
+          onClick={onEdit}
+        >
+          Edit
+        </Button>
+      }
+    >
+      {memory === "" ? null : (
+        <p className="max-w-2xl pt-1 text-xs leading-normal break-words text-muted-foreground">
+          Knows: {memory}
+        </p>
+      )}
+    </SettingsRow>
+  );
+}
 
 /**
  * Bots live here rather than in the sidebar: the list is conversations, and a bot you have
@@ -53,22 +94,11 @@ export function BotsSettingsPanel() {
           />
         ) : (
           bots.map((bot) => (
-            <SettingsRow
+            <BotRow
               key={bot.id}
-              title={bot.name}
-              description={bot.brief.trim() || bot.role}
-              status={<span className="text-muted-foreground text-sm">{bot.role}</span>}
-              control={
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  data-testid={`settings-bot-${bot.id}-edit`}
-                  onClick={() => setEditing(bot)}
-                >
-                  Edit
-                </Button>
-              }
+              bot={bot}
+              environmentId={environmentId}
+              onEdit={() => setEditing(bot)}
             />
           ))
         )}

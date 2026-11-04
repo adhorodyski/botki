@@ -6,6 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { McpServer } from "effect/ai";
 
+import { BotService } from "../bots/BotService.ts";
 import { ServerSecretStore } from "../auth/ServerSecretStore.ts";
 import { ServerConfig } from "../config.ts";
 import { DeviceService } from "../device/DeviceService.ts";
@@ -46,6 +47,21 @@ import budget from "./agentContextBudget.json" with { type: "json" };
 
 // Registration only stores tool definitions, so the handlers' services are never called.
 const toolHandlerServices = Layer.mergeAll(
+  // Registration only stores the tool, so the handler never runs; `briefPath` is a plain
+  // function, which Layer.mock cannot supply.
+  Layer.succeed(
+    BotService,
+    BotService.of({
+      list: () => Effect.die("not used"),
+      get: () => Effect.die("not used"),
+      mutate: () => Effect.die("not used"),
+      briefPath: () => "",
+      memoryPath: () => "",
+      readMemory: () => Effect.die("not used"),
+      saveMemory: () => Effect.die("not used"),
+      appendMemoryNote: () => Effect.die("not used"),
+    }),
+  ),
   Layer.mock(DeviceService)({}),
   Layer.mock(DocumentText)({}),
   Layer.mock(GitVcsDriver)({}),

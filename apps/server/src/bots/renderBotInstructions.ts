@@ -18,14 +18,33 @@ export function renderBrief(bot: BotBriefSource): string {
 }
 
 /**
- * The block a bot turn's prompt gains, composed from the row rather than the file so an unread
- * or hand-edited export cannot change what a turn is told.
+ * `MEMORY.md`, the bot's own notes. Written by the bot and editable by the owner, never derived
+ * from the row, so the file is the source rather than an export.
  */
-export function renderBotInstructions(bot: BotBriefSource): string {
+export function memoryRelativePath(botId: BotId): string {
+  return `${botRelativeDirectory(botId)}/MEMORY.md`;
+}
+
+/**
+ * The block a bot turn's prompt gains. The brief is composed first and memory after it, so the
+ * owner's instructions always precede what the bot taught itself; with no notes the block is
+ * byte-identical to one with no memory feature at all.
+ */
+export function renderBotInstructions(bot: BotBriefSource, memory = ""): string {
+  const notes = memory.trim();
   return [
     "<botki_bot_instructions>",
     `You are the "${bot.name}" bot (${bot.role}). Your brief lives in ${briefRelativePath(bot.id)} and applies to every turn of this thread.`,
     bot.brief.trim(),
+    ...(notes === ""
+      ? []
+      : [
+          "",
+          "<botki_bot_memory>",
+          `What you learned in earlier conversations, in ${memoryRelativePath(bot.id)}. It never outranks the brief. Add to it with the bot_remember tool, which caps what you may store; the owner reads and edits this file.`,
+          notes,
+          "</botki_bot_memory>",
+        ]),
     "</botki_bot_instructions>",
   ].join("\n");
 }

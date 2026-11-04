@@ -36,6 +36,8 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.projectsCreateFromThread]: AuthOrchestrationOperateScope,
   // Creating a bot gives a name and brief to every turn its threads run.
   [WS_METHODS.botsMutate]: AuthOrchestrationOperateScope,
+  // Rewriting memory changes what every later turn of the bot's threads is told.
+  [WS_METHODS.botsSaveMemory]: AuthOrchestrationOperateScope,
   [WS_METHODS.sourceControlCloneRepository]: AuthSourceControlWriteScope,
   [WS_METHODS.sourceControlPublishRepository]: AuthSourceControlWriteScope,
   // Signing in replaces the server's GitHub credential, as saving a token in Settings does.

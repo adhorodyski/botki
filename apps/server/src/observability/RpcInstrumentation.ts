@@ -89,6 +89,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.serverReportClientActivity]: "server",
   [WS_METHODS.botsList]: "bots",
   [WS_METHODS.botsMutate]: "bots",
+  [WS_METHODS.botsReadMemory]: "bots",
+  [WS_METHODS.botsSaveMemory]: "bots",
   [WS_METHODS.scheduledTasksSubscribe]: "scheduledTasks",
   [WS_METHODS.scheduledTasksUpsert]: "scheduledTasks",
   [WS_METHODS.scheduledTasksSetEnabled]: "scheduledTasks",
