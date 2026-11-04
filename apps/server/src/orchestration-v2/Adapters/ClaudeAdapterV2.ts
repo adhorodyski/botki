@@ -581,6 +581,19 @@ export class ClaudeAppendSystemPromptFileError extends Schema.TaggedError<Claude
   }
 }
 
+/** A staged brief the adapter was told to deliver but cannot read: never answer without it. */
+export class ClaudeBotInstructionsUnreadableError extends Schema.TaggedError<ClaudeBotInstructionsUnreadableError>()(
+  "ClaudeBotInstructionsUnreadableError",
+  {
+    path: Schema.String,
+    cause: Schema.optional(Schema.Defect()),
+  },
+) {
+  override get message(): string {
+    return `The bot's brief could not be read from ${this.path}, so this turn would answer without it. Start the turn again, or send the message on a thread with no bot.`;
+  }
+}
+
 export class ClaudeAppendSystemPromptMissingValueError extends Schema.TaggedError<ClaudeAppendSystemPromptMissingValueError>()(
   "ClaudeAppendSystemPromptMissingValueError",
   { flag: Schema.Literals(["--append-system-prompt", "--append-system-prompt-file"]) },
@@ -1481,6 +1494,8 @@ export function makeClaudeQueryOptions(input: {
   readonly supportedDialogKinds?: ClaudeQueryOptions["supportedDialogKinds"];
   readonly allowDangerouslySkipPermissions?: boolean;
   readonly appendSystemPromptFileText?: string;
+  /** A bot thread's staged brief, appended ahead of launch-argument text. */
+  readonly botInstructionsFileText?: string;
   // Flag settings, because a user's settings.json env beats the process env in Claude Code.
   readonly toolSearchOverride?: "true";
 }): ClaudeAgentSdkQueryOptions {
@@ -1597,6 +1612,9 @@ export function makeClaudeQueryOptions(input: {
               (deviceInstructions
                 ? `\n${T3_CODE_DEVICE_TOOL_INSTRUCTIONS_WITH_TOOL_SEARCH}\n`
                 : "")),
+        ...(input.botInstructionsFileText === undefined
+          ? []
+          : [input.botInstructionsFileText.replace(/\r?\n$/, "")]),
         ...launchAppendSystemPrompt,
       ].join("\n\n"),
     },
@@ -1650,6 +1668,27 @@ const readClaudeAppendSystemPromptFile = Effect.fnUntraced(function* (input: {
     .pipe(
       Effect.mapError((cause) => new ClaudeAppendSystemPromptFileError({ path: filePath, cause })),
     );
+});
+
+/**
+ * Reads the brief staged for this turn. A path the policy carries but the disk does not is a
+ * bug on our side, not a user's bad launch argument, so it fails the turn rather than running
+ * Claude without the brief it promised.
+ */
+const readClaudeBotInstructions = Effect.fnUntraced(function* (input: {
+  readonly botInstructionsPath: string | undefined;
+  readonly fileSystem: FileSystem.FileSystem;
+}) {
+  if (input.botInstructionsPath === undefined) return undefined;
+  return yield* input.fileSystem.readFileString(input.botInstructionsPath).pipe(
+    Effect.mapError(
+      (cause) =>
+        new ClaudeBotInstructionsUnreadableError({
+          path: input.botInstructionsPath ?? "",
+          cause,
+        }),
+    ),
+  );
 });
 
 const decodeClaudeLaunchArgSettings = Schema.decodeUnknownEffect(
@@ -10205,6 +10244,10 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             fileSystem,
             path,
           });
+          const botInstructionsText = yield* readClaudeBotInstructions({
+            botInstructionsPath: turnInput.runtimePolicy.botInstructionsPath,
+            fileSystem,
+          });
           const launchArgSettings = yield* readClaudeLaunchArgSettings({
             settings: adapterOptions.settings,
             cwd: turnInput.runtimePolicy.cwd,
@@ -10269,6 +10312,9 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             onElicitation,
             supportedDialogKinds: ["resume_return"],
             ...(appendSystemPromptFileText === undefined ? {} : { appendSystemPromptFileText }),
+            ...(botInstructionsText === undefined
+              ? {}
+              : { botInstructionsFileText: botInstructionsText }),
             ...(toolSearchOverride === undefined ? {} : { toolSearchOverride }),
           });
           const resolvedTurnCwd = yield* fileSystem

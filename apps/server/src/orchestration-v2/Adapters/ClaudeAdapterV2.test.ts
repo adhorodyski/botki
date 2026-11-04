@@ -980,7 +980,11 @@ describe("ClaudeAdapterV2 Auto-accept edits", () => {
 });
 
 describe("ClaudeAdapterV2 append-system-prompt-file launch argument", () => {
-  const startTurnWithLaunchArgs = Effect.fnUntraced(function* (launchArgs: string, cwd: string) {
+  const startTurnWithLaunchArgs = Effect.fnUntraced(function* (
+    launchArgs: string,
+    cwd: string,
+    botInstructionsPath?: string,
+  ) {
     const fileSystem = yield* FileSystem.FileSystem;
     const opened: Array<ClaudeAdapterV2.ClaudeAgentSdkQueryOptions> = [];
     const adapter = yield* ClaudeAdapterV2.makeClaudeAdapterV2({
@@ -1018,6 +1022,7 @@ describe("ClaudeAdapterV2 append-system-prompt-file launch argument", () => {
       runtimeMode: "full-access",
       interactionMode: "default",
       cwd,
+      ...(botInstructionsPath === undefined ? {} : { botInstructionsPath }),
     });
     const threadId = ThreadId.make("thread-claude-append-file");
     const runtime = yield* adapter.openSession({
@@ -1070,6 +1075,49 @@ describe("ClaudeAdapterV2 append-system-prompt-file launch argument", () => {
         assert.isUndefined(opened[0]!.extraArgs?.["append-system-prompt"]);
         assert.isUndefined(opened[0]!.extraArgs?.["append-system-prompt-file"]);
         assert.equal(opened[0]!.extraArgs?.["system-prompt"], "Replacement");
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+        ),
+      ),
+    ),
+  );
+
+  // The brief must arrive on the provider that says it can carry one, and never silently.
+  it.effect("appends a bot's staged brief to the system prompt", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const cwd = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-claude-brief-cwd-" });
+        const briefPath = NodePath.join(cwd, "BRIEF.md");
+        yield* fileSystem.writeFileString(briefPath, "You are Viki, proofreader.\n");
+        const plain = yield* startTurnWithLaunchArgs("", cwd);
+        const { exit, opened } = yield* startTurnWithLaunchArgs("", cwd, briefPath);
+        assert.isTrue(Exit.isSuccess(exit));
+        assert.equal(
+          appendSystemPrompt(opened[0]),
+          `${appendSystemPrompt(plain.opened[0])}\n\nYou are Viki, proofreader.`,
+        );
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("fails rather than run a bot turn whose brief cannot be read", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fileSystem = yield* FileSystem.FileSystem;
+        const cwd = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-claude-brief-cwd-" });
+        const { exit, opened } = yield* startTurnWithLaunchArgs(
+          "",
+          cwd,
+          NodePath.join(cwd, "gone.md"),
+        );
+        assert.isTrue(Exit.isFailure(exit));
+        assert.lengthOf(opened, 0);
       }).pipe(
         Effect.provide(
           Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),

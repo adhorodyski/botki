@@ -217,6 +217,11 @@ export const ServerProvider = Schema.Struct({
   reportsContextWindow: Schema.optional(Schema.Boolean),
   supportedRuntimeModes: Schema.optional(ForwardCompatibleArray(RuntimeMode)),
   supportsConversationRollback: Schema.optional(Schema.Boolean),
+  /**
+   * Whether a bot's brief actually reaches this provider's model. Absent means it does not, so
+   * a provider that never opts in can never answer as an unnamed assistant and look named.
+   */
+  supportsBotInstructions: Schema.optional(Schema.Boolean),
   supportsTextGeneration: Schema.optional(Schema.Boolean),
   setup: Schema.optional(
     Schema.Struct({

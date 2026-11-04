@@ -29,9 +29,10 @@ where the project crumb would, an empty composer asks what the bot should do, an
 branch, project scripts, `Open in`, git actions, and diff controls are absent. Threads with no bot
 keep all of those exactly as they were.
 
-**Limits today.** A brief changes behavior only on the Pi provider; a bot run on another provider
-answers as the plain assistant. One bot per conversation — a room where several bots share one
-thread is not built. A chat still lives on a workspace behind the scenes; only its name is hidden,
-so a bot's turn still runs in that checkout. Bots have no avatars and no memory between chats:
-everything a bot knows comes from its brief. Bots are configured per server, on the machine
-running it.
+**Limits today.** A brief reaches a turn on providers that carry one; a chat whose provider
+cannot will refuse the turn and name that provider rather than answer as an unnamed assistant —
+including the dev Replay provider, which replays answers rather than generating them. One bot
+per conversation — a room where several bots share one thread is not built. A chat still lives
+on a workspace behind the scenes; only its name is hidden, so a bot's turn still runs in that
+checkout. Bots have no avatars and no memory between chats: everything a bot knows comes from
+its brief. Bots are configured per server, on the machine running it.
