@@ -414,7 +414,7 @@ it.layer(layerProjectDeletionTest)("project deletion during thread commands", (i
         assert.includeMembers(remainingIds, [independent.id, detached.id, moved.id, other.id]);
         assert.lengthOf((yield* tasks.listWebhookDeliveries({ id: webhook.id })).deliveries, 0);
         const rejected = yield* tasks.runNow({ id: bound.id }).pipe(Effect.flip);
-        assert.equal(rejected.message, "Schedule task not found.");
+        assert.equal(rejected.message, "Routine not found.");
         assert.equal(
           (yield* tasks.triggerWebhook({
             hookId: webhook.id,

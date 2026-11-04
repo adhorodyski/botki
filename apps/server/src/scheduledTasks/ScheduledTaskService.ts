@@ -389,7 +389,7 @@ const decodeRow = Effect.fnUntraced(
     effect.pipe(
       Effect.mapError((cause) => {
         const taskId = decodeTaskId(row.task_id);
-        return taskError("Could not decode schedule task row.", {
+        return taskError("Could not decode routine row.", {
           ...(Option.isSome(taskId) ? { taskId: taskId.value } : {}),
           cause,
         });
@@ -416,12 +416,12 @@ export const listDueTasks = Effect.fn("ScheduledTaskService.listDueTasks")(funct
       if (task.nextRunAt === null || Option.isSome(DateTime.make(task.nextRunAt))) {
         tasks.push(task);
       } else {
-        yield* Effect.logWarning("Skipping schedule task row with invalid next_run_at", {
+        yield* Effect.logWarning("Skipping routine row with invalid next_run_at", {
           taskId: row.task_id,
         });
       }
     } else {
-      yield* Effect.logWarning("Skipping undecodable schedule task row", {
+      yield* Effect.logWarning("Skipping undecodable routine row", {
         taskId: row.task_id,
         cause: decoded.failure,
       });
@@ -539,9 +539,7 @@ export const layer = Layer.effect(
 
     const findTask = Effect.fn("ScheduledTaskService.findTask")(function* (id: ScheduledTaskId) {
       const rows = yield* getRows(id).pipe(
-        Effect.mapError((cause) =>
-          taskError("Could not load schedule task.", { taskId: id, cause }),
-        ),
+        Effect.mapError((cause) => taskError("Could not load routine.", { taskId: id, cause })),
       );
       const row = rows[0];
       if (row === undefined) return null;
@@ -555,9 +553,7 @@ export const layer = Layer.effect(
             ? null
             : { token: rows[0].webhook_token, secret: rows[0].webhook_secret },
         ),
-        Effect.mapError((cause) =>
-          taskError("Could not load schedule task.", { taskId: id, cause }),
-        ),
+        Effect.mapError((cause) => taskError("Could not load routine.", { taskId: id, cause })),
       );
 
     const newWebhookToken = crypto.randomBytes(32).pipe(
@@ -568,43 +564,49 @@ export const layer = Layer.effect(
     const loadTask = Effect.fn("ScheduledTaskService.loadTask")(function* (id: ScheduledTaskId) {
       const task = yield* findTask(id);
       if (task === null) {
-        return yield* taskError("Schedule task not found.", { taskId: id });
+        return yield* taskError("Routine not found.", { taskId: id });
       }
       return task;
     });
 
-    // Why a task that names a bot cannot run as that bot, or null when it can. A provider
-    // snapshot with no `supportsBotInstructions` means it cannot, matching the per-turn guard in
-    // RuntimePolicy: absent never gets to answer as a bot and look named.
+    // Why a routine cannot run as the bot it names, or null when it can. A provider snapshot with
+    // no `supportsBotInstructions` means it cannot, matching the per-turn guard in RuntimePolicy:
+    // absent never gets to answer as a bot and look named.
     const botRunBlock = Effect.fnUntraced(function* (
       botId: BotId,
       modelSelection: ScheduledTask["modelSelection"],
     ) {
-      // Reads the bots table rather than BotService, so the schedule service keeps its own
+      // Reads the bots table rather than BotService, so the routine service keeps its own
       // database dependency instead of pulling the bot service into the runtime layer graph.
-      const found = yield* sql`SELECT 1 FROM bots WHERE bot_id = ${botId}`.pipe(
+      // The name comes from the row so a message reads "Viki", not the id it is stored under.
+      const found = yield* sql`SELECT name FROM bots WHERE bot_id = ${botId}`.pipe(
         NodeSqliteClient.readOnly,
         Effect.mapError((cause) => taskError("Could not load bots.", { cause })),
       );
-      if (found.length === 0) return `bot '${botId}' no longer exists`;
+      if (found.length === 0) return { name: String(botId), why: "the bot was deleted" };
       const instance = yield* providerInstances.getInstance(modelSelection.instanceId);
       const snapshot = instance === undefined ? undefined : yield* instance.snapshot.getSnapshot;
       return snapshot?.supportsBotInstructions === true
         ? null
-        : `the ${snapshot?.displayName ?? "selected"} provider cannot carry a bot's brief`;
+        : {
+            name: found[0]!.name,
+            why: snapshot
+              ? `the ${snapshot.displayName} provider does not support bots`
+              : "its provider does not support bots",
+          };
     });
 
-    // A bot can be deleted after its task is saved, so the fire re-asks and pauses the task
+    // A bot can be deleted after its routine is saved, so the fire re-asks and pauses the routine
     // rather than starting a plain assistant wearing a schedule. Clearing `enabled` and
     // `next_run_at` is what stops it firing unnamed; the reason goes where the list shows it.
     const pauseUnnamedRun = Effect.fn("ScheduledTaskService.pauseUnnamedRun")(function* (
       task: ScheduledTask,
     ) {
       if (task.botId === null) return null;
-      const block = yield* botRunBlock(task.botId, task.modelSelection);
-      if (block === null) return null;
+      const blocked = yield* botRunBlock(task.botId, task.modelSelection);
+      if (blocked === null) return null;
       const now = yield* localNow;
-      const reason = `Paused: cannot run as '${task.botId}' (${block}).`;
+      const reason = `Paused: this routine cannot run as ${blocked.name} (${blocked.why}).`;
       yield* sql`
         UPDATE scheduled_tasks
         SET enabled = 0,
@@ -615,7 +617,7 @@ export const layer = Layer.effect(
         WHERE task_id = ${task.id}
       `.pipe(
         Effect.mapError((cause) =>
-          taskError("Could not pause schedule task.", { taskId: task.id, cause }),
+          taskError("Could not pause routine.", { taskId: task.id, cause }),
         ),
       );
       yield* notifyChanged;
@@ -727,12 +729,10 @@ export const layer = Layer.effect(
         RETURNING task_id
       `.pipe(
         Effect.mapError((cause) =>
-          taskError("Could not save schedule task.", { taskId: task.id, cause }),
+          taskError("Could not save routine.", { taskId: task.id, cause }),
         ),
         Effect.flatMap((rows) =>
-          rows.length > 0
-            ? Effect.void
-            : taskError("Schedule task not found.", { taskId: task.id }),
+          rows.length > 0 ? Effect.void : taskError("Routine not found.", { taskId: task.id }),
         ),
       );
 
@@ -744,9 +744,7 @@ export const layer = Layer.effect(
           ),
         )
         .pipe(
-          Effect.mapError((cause) =>
-            taskError("Could not delete schedule task.", { taskId: id, cause }),
-          ),
+          Effect.mapError((cause) => taskError("Could not delete routine.", { taskId: id, cause })),
         );
 
     const markRunning = (id: ScheduledTaskId, startedAtIso: string, webhookDeliveryId?: string) =>
@@ -761,10 +759,10 @@ export const layer = Layer.effect(
         RETURNING task_id
       `.pipe(
         Effect.mapError((cause) =>
-          taskError("Could not mark schedule task as running.", { taskId: id, cause }),
+          taskError("Could not mark routine as running.", { taskId: id, cause }),
         ),
         Effect.flatMap((rows) =>
-          rows.length > 0 ? Effect.void : taskError("Schedule task not found.", { taskId: id }),
+          rows.length > 0 ? Effect.void : taskError("Routine not found.", { taskId: id }),
         ),
       );
 
@@ -790,7 +788,7 @@ export const layer = Layer.effect(
       `.pipe(
         Effect.map((rows) => rows.length > 0),
         Effect.mapError((cause) =>
-          taskError("Could not record schedule task run.", { taskId: input.id, cause }),
+          taskError("Could not record routine run.", { taskId: input.id, cause }),
         ),
       );
 
@@ -825,7 +823,7 @@ export const layer = Layer.effect(
       (effect, task, _startedAtIso, _message, _pendingDeliveryId) =>
         effect.pipe(
           Effect.catch((cause) =>
-            Effect.logWarning("Could not release stuck schedule task run", {
+            Effect.logWarning("Could not release stuck routine run", {
               taskId: task.id,
               cause,
             }),
@@ -855,7 +853,7 @@ export const layer = Layer.effect(
             });
           }
           if (trigger !== "scheduled") {
-            return yield* taskError("Schedule task not found.", { taskId: task.id });
+            return yield* taskError("Routine not found.", { taskId: task.id });
           }
           return { task, threadId: null, dispatchFailed: false };
         }
@@ -1059,7 +1057,7 @@ export const layer = Layer.effect(
                 ? cause
                 : taskError(
                     webhook === undefined
-                      ? "Could not record schedule task run."
+                      ? "Could not record routine run."
                       : "Could not record webhook completion.",
                     { taskId: task.id, cause },
                   ),
@@ -1086,7 +1084,7 @@ export const layer = Layer.effect(
           reserved
             ? run
             : trigger !== "scheduled"
-              ? Effect.fail(taskError("Schedule task is already running.", { taskId: task.id }))
+              ? Effect.fail(taskError("Routine is already running.", { taskId: task.id }))
               : Effect.succeed({ task, threadId: null, dispatchFailed: false }),
         (reserved) =>
           reserved
@@ -1104,7 +1102,7 @@ export const layer = Layer.effect(
       now: DateTime.DateTime,
     ) {
       const next = nextRunAt(task, now);
-      yield* Effect.logInfo("Skipping missed schedule task run", {
+      yield* Effect.logInfo("Skipping missed routine run", {
         taskId: task.id,
         missedRunAt: task.nextRunAt,
         rescheduledTo: next,
@@ -1116,7 +1114,7 @@ export const layer = Layer.effect(
         WHERE task_id = ${task.id}
       `.pipe(
         Effect.mapError((cause) =>
-          taskError("Could not reschedule missed schedule task run.", { taskId: task.id, cause }),
+          taskError("Could not reschedule missed routine run.", { taskId: task.id, cause }),
         ),
       );
       yield* notifyChanged;
@@ -1132,7 +1130,7 @@ export const layer = Layer.effect(
         WHERE enabled = 1 AND next_run_at IS NOT NULL AND last_run_status <> 'running'
       `.pipe(
         NodeSqliteClient.readOnly,
-        Effect.mapError((cause) => taskError("Could not list schedule tasks.", { cause })),
+        Effect.mapError((cause) => taskError("Could not list routines.", { cause })),
       );
       // Compare as text like listDueTasks: expanded years (`+011533-…`) sort first but parse far ahead.
       const nextRunAt = next?.next_run_at ?? null;
@@ -1147,7 +1145,7 @@ export const layer = Layer.effect(
         return;
       }
       const tasks = yield* listDueTasks(now).pipe(
-        Effect.mapError((cause) => taskError("Could not list schedule tasks.", { cause })),
+        Effect.mapError((cause) => taskError("Could not list routines.", { cause })),
       );
       const due = tasks.flatMap((task) =>
         task.nextRunAt === null ? [] : [{ task, dueAt: DateTime.makeUnsafe(task.nextRunAt) }],
@@ -1161,7 +1159,7 @@ export const layer = Layer.effect(
               : runTask(task, "scheduled"),
           ).pipe(
             Effect.catch((cause) =>
-              Effect.logWarning("Scheduled task run failed", { taskId: task.id, cause }),
+              Effect.logWarning("Routine run failed", { taskId: task.id, cause }),
             ),
           ),
         { concurrency: 1, discard: true },
@@ -1195,10 +1193,10 @@ export const layer = Layer.effect(
               `;
               return;
             }
-            yield* Effect.logWarning(
-              "Recovering undecodable schedule task row without rescheduling",
-              { taskId: row.task_id, cause: decoded.failure },
-            );
+            yield* Effect.logWarning("Recovering undecodable routine row without rescheduling", {
+              taskId: row.task_id,
+              cause: decoded.failure,
+            });
             yield* sql`
               UPDATE scheduled_tasks
               SET last_run_status = 'failed',
@@ -1217,7 +1215,7 @@ export const layer = Layer.effect(
       yield* notifyChanged;
     }).pipe(
       Effect.catch((cause) =>
-        Effect.logWarning("Could not reset interrupted schedule task runs", { cause }),
+        Effect.logWarning("Could not reset interrupted routine runs", { cause }),
       ),
     );
 
@@ -1226,7 +1224,7 @@ export const layer = Layer.effect(
     const list: ScheduledTaskService["Service"]["list"] = () =>
       listRows().pipe(
         Effect.map((tasks) => ({ tasks })),
-        Effect.mapError((cause) => taskError("Could not list schedule tasks.", { cause })),
+        Effect.mapError((cause) => taskError("Could not list routines.", { cause })),
       );
 
     const subscribeList: ScheduledTaskService["Service"]["subscribeList"] = () =>
@@ -1250,9 +1248,7 @@ export const layer = Layer.effect(
           ? yield* crypto
               .randomUUIDv4()
               .pipe(
-                Effect.mapError((cause) =>
-                  taskError("Could not generate schedule task id.", { cause }),
-                ),
+                Effect.mapError((cause) => taskError("Could not generate routine id.", { cause })),
               )
           : null;
       const id =
@@ -1334,13 +1330,13 @@ export const layer = Layer.effect(
               return { token, secret, secretChanged };
             })
           : { token: null, secret: null, secretChanged: true };
-      // A task naming a bot is refused at the save, so whoever chose the bot is told while the
+      // A routine naming a bot is refused at the save, so whoever chose the bot is told while the
       // chooser is still on screen. Only the incoming name is checked: a bot deleted later is
-      // the fire's problem, and this keeps unrelated edits open on an existing task.
+      // the fire's problem, and this keeps unrelated edits open on an existing routine.
       if (input.botId !== undefined && input.botId !== null) {
-        const block = yield* botRunBlock(input.botId, input.modelSelection);
-        if (block !== null) {
-          return yield* taskError(`This task cannot run as '${input.botId}': ${block}.`, {
+        const blocked = yield* botRunBlock(input.botId, input.modelSelection);
+        if (blocked !== null) {
+          return yield* taskError(`This routine cannot run as ${blocked.name}: ${blocked.why}.`, {
             taskId: id,
           });
         }
@@ -1414,11 +1410,11 @@ export const layer = Layer.effect(
           RETURNING task_id
         `.pipe(
         Effect.mapError((cause) =>
-          taskError("Could not update schedule task.", { taskId: input.id, cause }),
+          taskError("Could not update routine.", { taskId: input.id, cause }),
         ),
       );
       if (updated.length === 0) {
-        return yield* taskError("Schedule task not found.", { taskId: input.id });
+        return yield* taskError("Routine not found.", { taskId: input.id });
       }
       yield* notifyChanged;
       return {
@@ -1484,7 +1480,7 @@ export const layer = Layer.effect(
         )
         .pipe(
           Effect.mapError((cause) =>
-            taskError("Could not delete thread's schedule tasks.", { cause }),
+            taskError("Could not delete the thread's routines.", { cause }),
           ),
         );
       yield* Effect.forEach(removed, ({ task_id }) => forgetWebhookTask(task_id), {
@@ -1502,9 +1498,7 @@ export const layer = Layer.effect(
         WHERE project_id != ${input.projectId} AND thread_id IN ${sql.in(input.threadIds)}
         RETURNING task_id
       `.pipe(
-        Effect.mapError((cause) =>
-          taskError("Could not move the thread's schedule tasks.", { cause }),
-        ),
+        Effect.mapError((cause) => taskError("Could not move the thread's routines.", { cause })),
       );
       if (moved.length > 0) yield* notifyChanged;
     });
@@ -1520,7 +1514,7 @@ export const layer = Layer.effect(
       }
       return yield* runTask(task, "manual").pipe(
         Effect.mapError((cause) =>
-          taskError("Could not run schedule task.", { taskId: input.id, cause }),
+          taskError("Could not run routine.", { taskId: input.id, cause }),
         ),
       );
     });
@@ -1937,7 +1931,7 @@ export const layer = Layer.effect(
       if (Option.isNone(taskId)) return yield* notFound;
       const rows = yield* getRows(taskId.value).pipe(
         Effect.mapError((cause) =>
-          taskError("Could not load schedule task.", { taskId: taskId.value, cause }),
+          taskError("Could not load routine.", { taskId: taskId.value, cause }),
         ),
       );
       const row = rows[0];

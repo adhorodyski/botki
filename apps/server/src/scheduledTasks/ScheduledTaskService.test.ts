@@ -683,7 +683,7 @@ describe("a scheduled task that names a bot", () => {
         assert.isTrue(isScheduledTaskError(error));
         assert.equal(
           error.message,
-          "This task cannot run as 'viki': the grok provider cannot carry a bot's brief.",
+          "This routine cannot run as Viki: the grok provider does not support bots.",
         );
         assert.deepEqual(launches, []);
         assert.deepEqual((yield* service.list()).tasks, []);
@@ -713,7 +713,7 @@ describe("a scheduled task that names a bot", () => {
         assert.equal(ran.task.lastRunStatus, "failed");
         assert.equal(
           ran.task.lastRunError,
-          "Paused: cannot run as 'viki' (bot 'viki' no longer exists).",
+          "Paused: this routine cannot run as viki (the bot was deleted).",
         );
 
         // Nothing started, so nothing counts as a run: only a dispatch that reached the

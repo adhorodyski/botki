@@ -53,7 +53,7 @@ it.effect("rejects a stale form save after deletion while preserving explicit-id
       yield* service.delete({ id: created.task.id });
 
       const failure = yield* service.upsert(edit).pipe(Effect.flip);
-      expect(failure.message).toBe("Schedule task not found.");
+      expect(failure.message).toBe("Routine not found.");
       expect((yield* service.list()).tasks).toEqual([]);
 
       expect((yield* service.upsert(input)).task.id).toBe(created.task.id);
