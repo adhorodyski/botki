@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import type {
+  BotId,
   EnvironmentId,
   ModelSelection,
   OrchestrationV2ThreadLaunchWorkspaceStrategy,
@@ -89,6 +90,7 @@ import {
   type WorkspaceMode,
 } from "./scheduledTasksSettings.logic";
 import { Label } from "../ui/label";
+import { useBots } from "../../state/bots";
 import { Menu, MenuTrigger, MenuPopup, MenuItem, MenuSeparator } from "../ui/menu";
 import { ToggleGroup, Toggle } from "../ui/toggle-group";
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "../ui/empty";
@@ -141,6 +143,7 @@ const EMPTY_DRAFT: DraftState = {
   weekdays: new Set([1, 2, 3, 4, 5]),
   projectId: "",
   threadId: "",
+  botId: "",
   workspaceMode: "worktree",
   baseRef: "main",
   startFromOrigin: true,
@@ -1179,6 +1182,7 @@ function ScheduledTaskEditorForm({
     );
   const scopedProjects = projectsOn(environmentId);
   const settings = useEnvironmentSettings(environmentId);
+  const { bots } = useBots(connected ? environmentId : null);
   const providers =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   const canOperate = useAtomValue(
@@ -1214,6 +1218,7 @@ function ScheduledTaskEditorForm({
     : task;
   const selectedProjectId = draft.projectId || projects[0]?.id || "";
   const selectedProject = projects.find((project) => project.id === selectedProjectId);
+  const selectedBot = bots.find((bot) => bot.id === draft.botId);
   const instanceEntries = providerInstanceEntriesFor(
     providers,
     settings,
@@ -1329,6 +1334,7 @@ function ScheduledTaskEditorForm({
       schedule,
       projectId: selectedProjectId as ProjectId,
       threadId: draft.threadId ? (draft.threadId as ThreadId) : null,
+      botId: draft.threadId === "" && draft.botId !== "" ? (draft.botId as BotId) : null,
       workspaceStrategy,
       modelSelection,
       runtimeMode: draft.runtimeMode,
@@ -1448,6 +1454,37 @@ function ScheduledTaskEditorForm({
               }
             />
           </Field>
+
+          {draft.threadId === "" ? (
+            <Field label="Bot" htmlFor="scheduled-task-bot">
+              <Select
+                value={draft.botId}
+                onValueChange={(botId) =>
+                  setDraft((current) => ({ ...current, botId: botId ?? "" }))
+                }
+              >
+                <SelectTrigger size="sm" id="scheduled-task-bot">
+                  <SelectValue placeholder="No bot">{selectedBot?.name}</SelectValue>
+                </SelectTrigger>
+                <SelectPopup>
+                  <SelectItem value="">No bot</SelectItem>
+                  {bots.map((bot) => (
+                    <SelectItem key={bot.id} value={bot.id} label={bot.name}>
+                      <span className="block truncate">{bot.name}</span>
+                      {bot.role.trim() === "" ? null : (
+                        <span className="block max-w-72 truncate text-xs text-muted-foreground">
+                          {bot.role}
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Each run starts a new thread owned by this bot, and its brief binds every turn.
+              </p>
+            </Field>
+          ) : null}
 
           <ScheduledTaskDestination
             environmentId={environmentId}
